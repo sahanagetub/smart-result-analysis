@@ -3,23 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Smart Result Analysis</title>
+  <title>Clerk Login - Smart Result Analysis</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/auth.css" />
 </head>
 <body class="login-body">
   <div class="login-card">
-    <h1>Smart Result Analysis</h1>
-    <p class="muted">Sign in to continue</p>
-    <form id="loginForm" class="login-form">
-      <label for="username">Username</label>
-      <input type="text" id="username" name="username" placeholder="Enter username" required />
+    <div class="login-brand">
+      <img src="/images/logo.svg" alt="Logo" class="logo" />
+      <h1>Smart Result Analysis</h1>
+      <p class="muted">Clerk Login Portal</p>
+    </div>
+    <form id="loginForm" class="login-form" novalidate>
+      <label for="username">Username or Email</label>
+      <input type="text" id="username" name="username" placeholder="Enter username or email" autocomplete="username" />
+
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Enter password" required />
-      <button type="submit" class="btn btn-primary">Login</button>
-      <div id="loginError" class="login-error"></div>
+      <div class="password-field">
+        <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" />
+        <button type="button" id="togglePassword" class="toggle-password" aria-label="Show password">Show</button>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+      <div id="loginError" class="login-error" role="alert"></div>
     </form>
-    <p class="muted small">Authentication foundation (Phase 1). Default: admin / Admin@123</p>
+    <p class="muted small">Foundation credentials: admin / Admin@123</p>
   </div>
   <script src="/js/auth.js"></script>
 </body>

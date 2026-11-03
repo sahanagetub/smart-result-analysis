@@ -16,7 +16,7 @@ router.post(
   '/login',
   loginLimiter,
   [
-    body('username').trim().notEmpty().withMessage('Username is required.'),
+    body('username').trim().notEmpty().withMessage('Username is required.').escape(),
     body('password').notEmpty().withMessage('Password is required.')
   ],
   (req, res, next) => {

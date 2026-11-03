@@ -1,8 +1,9 @@
 function requireAuth(req, res, next) {
-  if (req.session && req.session.userId) {
+  const user = (req.session && (req.session.user || (req.session.userId ? { username: req.session.userId } : null)));
+  if (user) {
+    req.user = user;
     return next();
   }
-  // API requests get JSON 401
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(401).json({ success: false, message: 'Authentication required.' });
   }

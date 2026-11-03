@@ -8,13 +8,16 @@
   <link rel="stylesheet" href="/css/dashboard.css" />
 </head>
 <body>
-  <header class="top-header">
+  <header class="top-navbar">
     <div class="brand">
       <img src="/images/logo.svg" alt="Logo" class="logo" />
-      <span class="brand-title">Smart Result Analysis</span>
+      <span class="brand-title">Smart Student Result Analysis</span>
     </div>
-    <div class="header-right">
-      <span class="user-info" id="userInfo">Loading...</span>
+    <div class="navbar-right">
+      <div class="clerk-profile">
+        <span class="clerk-name" id="userInfo">Clerk</span>
+        <span class="clerk-role">Academic Clerk</span>
+      </div>
       <button id="logoutBtn" class="btn-logout">Logout</button>
     </div>
   </header>
@@ -24,23 +27,47 @@
       <nav>
         <ul class="nav-list">
           <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
+
+          <li class="nav-group">Academic Management</li>
           <li><a href="/batches.html" class="nav-link">Batches</a></li>
           <li><a href="/students.html" class="nav-link">Students</a></li>
-          <li><a href="/sessions.html" class="nav-link">Sessions</a></li>
           <li><a href="/semesters.html" class="nav-link">Semesters</a></li>
+          <li><a href="/sessions.html" class="nav-link">Exam Sessions</a></li>
           <li><a href="/subjects.html" class="nav-link">Subjects</a></li>
-          <li><a href="/results.html" class="nav-link">Results</a></li>
-          <li><a href="/analytics.html" class="nav-link">Analytics</a></li>
-          <li><a href="/reports.html" class="nav-link">Reports</a></li>
+
+          <li class="nav-group">Result Management</li>
+          <li>
+            <a href="#" class="nav-link disabled-link" aria-disabled="true" title="Available in next phase">
+              Upload Result <span class="lock">🔒</span>
+            </a>
+          </li>
+          <li><a href="/results.html" class="nav-link">Result Records</a></li>
+
+          <li class="nav-group">Analytics</li>
+          <li><a href="/analytics.html" class="nav-link">Overview</a></li>
+          <li><a href="/analytics.html" class="nav-link">Class Analysis</a></li>
+          <li><a href="/analytics.html" class="nav-link">Subject Analysis</a></li>
+          <li><a href="/analytics.html" class="nav-link">Toppers</a></li>
+
+          <li class="nav-group">Reports</li>
+          <li><a href="/reports.html" class="nav-link">Consolidated Result</a></li>
+          <li><a href="/reports.html" class="nav-link">Class Result</a></li>
+          <li><a href="/reports.html" class="nav-link">Topper Report</a></li>
+          <li><a href="/reports.html" class="nav-link">Failed Students</a></li>
+          <li><a href="/reports.html" class="nav-link">Subject-wise Report</a></li>
+          <li><a href="/reports.html" class="nav-link">Student Report</a></li>
         </ul>
       </nav>
     </aside>
 
     <main class="main-content">
       <div class="page-header">
-        <h1>Welcome to Smart Result Analysis</h1>
-        <p>Monitor academic performance and predictions at a glance.</p>
+        <h1>Dashboard</h1>
+        <p>Academic overview and recent activity.</p>
       </div>
+
+      <div id="dbStatus" class="status-banner" style="display:none;"></div>
+      <div id="dashboardError" class="status-banner status-error" style="display:none;"></div>
 
       <div class="cards-grid">
         <div class="card stat-card">
@@ -56,24 +83,26 @@
           <p class="stat-value" id="totalSubjects">-</p>
         </div>
         <div class="card stat-card">
-          <h3>Total Results</h3>
-          <p class="stat-value" id="totalResults">-</p>
+          <h3>Total Semesters</h3>
+          <p class="stat-value" id="totalSemesters">-</p>
         </div>
       </div>
 
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>Semester-wise Performance</h3>
-          <div class="chart-wrap"><canvas id="semesterChart"></canvas></div>
+      <div class="overview-grid">
+        <div class="card overview-card">
+          <h3>Academic Overview</h3>
+          <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
         </div>
-        <div class="chart-card">
-          <h3>Pass vs Fail</h3>
-          <div class="chart-wrap"><canvas id="passFailChart"></canvas></div>
+        <div class="card overview-card">
+          <h3>Recent Activity</h3>
+          <ul id="recentActivityList" class="activity-list">
+            <li>Loading...</li>
+          </ul>
         </div>
-        <div class="chart-card">
-          <h3>Subject-wise Performance</h3>
-          <div class="chart-wrap"><canvas id="subjectChart"></canvas></div>
-        </div>
+      </div>
+
+      <div class="placeholder-box">
+        <p>Additional analytics and charts will be available in the next phase.</p>
       </div>
     </main>
   </div>
