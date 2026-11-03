@@ -1,0 +1,32 @@
+{
+  "name": "smart-result-analysis",
+  "version": "1.0.0",
+  "description": "Smart Student Result Analysis and Academic Performance Prediction System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "result-analysis",
+    "academic-performance",
+    "prediction"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "chart.js": "^4.6.1",
+    "dotenv": "^18.0.9",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.3",
+    "express-session": "^1.19.0",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
+    "morgan": "^1.12.1",
+    "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

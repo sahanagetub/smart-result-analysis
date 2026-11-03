@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Smart Result Analysis</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/auth.css" />
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h1>Smart Result Analysis</h1>
+    <p class="muted">Sign in to continue</p>
+    <form id="loginForm" class="login-form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" placeholder="Enter username" required />
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter password" required />
+      <button type="submit" class="btn btn-primary">Login</button>
+      <div id="loginError" class="login-error"></div>
+    </form>
+    <p class="muted small">Authentication foundation (Phase 1). Default: admin / Admin@123</p>
+  </div>
+  <script src="/js/auth.js"></script>
+</body>
+</html>
