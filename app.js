@@ -8,6 +8,8 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { requireAuth } = require('./middleware/authMiddleware');
 const routes = require('./routes');
 const { testConnection } = require('./config/db');
+const { initBatchesTable } = require('./services/batchService');
+const { initUsersTable } = require('./services/userService');
 
 const app = express();
 
@@ -66,5 +68,7 @@ app.use(errorHandler);
 
 // Test DB connection (non-blocking)
 testConnection().catch((err) => console.error('DB test error:', err));
+initBatchesTable().catch((err) => console.error('Batches table init error:', err));
+initUsersTable().catch((err) => console.error('Users table init error:', err));
 
 module.exports = app;

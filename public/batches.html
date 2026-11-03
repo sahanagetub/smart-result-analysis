@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Batches - Smart Result Analysis</title>
+  <title>Batch Management - Smart Result Analysis</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/batches.css" />
 </head>
 <body>
   <header class="top-navbar">
@@ -26,7 +27,7 @@
         <ul class="nav-list">
           <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
           <li class="nav-group">Academic Management</li>
-          <li><a href="/batches.html" class="nav-link">Batches</a></li>
+          <li><a href="/batches.html" class="nav-link active">Batches</a></li>
           <li><a href="/students.html" class="nav-link">Students</a></li>
           <li><a href="/semesters.html" class="nav-link">Semesters</a></li>
           <li><a href="/sessions.html" class="nav-link">Exam Sessions</a></li>
@@ -51,12 +52,94 @@
     </aside>
     <main class="main-content">
       <div class="page-header">
-        <h1>Batches</h1>
-        <p>Manage academic batches.</p>
+        <h1>Batch Management</h1>
+        <p>Create, view, edit and manage academic batches.</p>
       </div>
-      <div class="placeholder-box">
-        <h2>Under Development</h2>
-        <p>This module will be implemented in the next phase.</p>
+      <div id="dbStatusBanner" class="status-banner status-warn" style="display:none;">
+        Database is disabled (demo mode). Batch operations are unavailable until MySQL is enabled.
+      </div>
+      <div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+      <div class="cards-grid">
+        <div class="card stat-card">
+          <h3>Total Batches</h3>
+          <p class="stat-value" id="cardTotal">0</p>
+        </div>
+        <div class="card stat-card">
+          <h3>Active Batches</h3>
+          <p class="stat-value" id="cardActive">0</p>
+        </div>
+        <div class="card stat-card">
+          <h3>Inactive Batches</h3>
+          <p class="stat-value" id="cardInactive">0</p>
+        </div>
+      </div>
+      <div class="card form-card">
+        <div class="card-header">
+          <h3 id="formTitle">Add New Batch</h3>
+          <button id="cancelFormBtn" class="btn btn-secondary" style="display:none;">Cancel</button>
+        </div>
+        <form id="batchForm" class="batch-form" novalidate>
+          <input type="hidden" id="batchId" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="batchName">Batch Name <span class="required">*</span></label>
+              <input type="text" id="batchName" name="batch_name" placeholder="e.g. MCA 2025-2027" maxlength="100" />
+              <span class="field-error" id="errBatchName"></span>
+            </div>
+            <div class="form-group">
+              <label for="startYear">Start Year <span class="required">*</span></label>
+              <input type="number" id="startYear" name="start_year" min="1900" max="2100" placeholder="YYYY" />
+              <span class="field-error" id="errStartYear"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="endYear">End Year <span class="required">*</span></label>
+              <input type="number" id="endYear" name="end_year" min="1900" max="2100" placeholder="YYYY" />
+              <span class="field-error" id="errEndYear"></span>
+            </div>
+            <div class="form-group">
+              <label for="batchStatus">Status <span class="required">*</span></label>
+              <select id="batchStatus" name="status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <span class="field-error" id="errStatus"></span>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" id="saveBatchBtn" class="btn btn-primary">Save Batch</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="toolbar">
+        <button id="addBatchBtn" class="btn btn-primary">Add New Batch</button>
+        <div class="search-box">
+          <input type="text" id="searchBatches" placeholder="Search batches by name..." />
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-wrapper">
+          <table id="batchesTable">
+            <thead>
+              <tr>
+                <th>Batch Name</th>
+                <th>Start Year</th>
+                <th>End Year</th>
+                <th>Status</th>
+                <th>Students</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="batchesTableBody">
+              <tr>
+                <td colspan="7" class="empty-row">Loading batches...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   </div>
@@ -64,5 +147,7 @@
     <p>&copy; 2026 Smart Student Result Analysis and Academic Performance Prediction System.</p>
   </footer>
   <script src="/js/main.js"></script>
+  <script src="/js/batches.js"></script>
 </body>
 </html>
+
