@@ -32,4 +32,13 @@ router.get('/:id', requireAuth, studentController.getStudent);
 // POST add student
 router.post('/', requireAuth, studentValidation, handleValidation, studentController.addStudent);
 
+// PUT update student
+router.put('/:id', requireAuth, studentController.updateStudent);
+
+// DELETE delete student
+router.delete('/:id', requireAuth, studentController.deleteStudent);
+
+// POST import students
+router.post('/import', requireAuth, studentController.importStudents);
+
 module.exports = router;
