@@ -70,5 +70,6 @@ app.use(errorHandler);
 testConnection().catch((err) => console.error('DB test error:', err));
 initBatchesTable().catch((err) => console.error('Batches table init error:', err));
 initUsersTable().catch((err) => console.error('Users table init error:', err));
+initStudentsTable().catch((err) => console.error('Students table init error:', err));
 
 module.exports = app;
