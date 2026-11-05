@@ -123,6 +123,64 @@ async function getStudentCountsByBatch() {
   return result;
 }
 
+async function updateStudent(id, data) {
+  if (isDbDisabled()) {
+    throw new Error('Database integration is disabled.');
+  }
+  const pool = getPool();
+  if (!pool) throw new Error('Database pool unavailable.');
+
+  // Build update query
+  let sql = 'UPDATE students SET ';
+  const updates = [];
+  const params = [];
+
+  if (data.usn !== undefined) {
+    updates.push('usn = ?');
+    params.push(data.usn);
+  }
+  if (data.name !== undefined) {
+    updates.push('name = ?');
+    params.push(data.name);
+  }
+  if (data.email !== undefined) {
+    updates.push('email = ?');
+    params.push(data.email);
+  }
+  if (data.batch_id !== undefined) {
+    updates.push('batch_id = ?');
+    params.push(data.batch_id);
+  }
+  if (updates.length === 0) {
+    throw new Error('No fields to update.');
+  }
+  params.push(id);
+
+  const [result] = await pool.execute(sql + ' WHERE id = ?', params);
+
+  if (result.affectedRows === 0) {
+    return null;
+  }
+
+  return getStudentById(id);
+}
+
+async function deleteStudent(id) {
+  if (isDbDisabled()) {
+    throw new Error('Database integration is disabled.');
+  }
+  const pool = getPool();
+  if (!pool) throw new Error('Database pool unavailable.');
+
+  const [result] = await pool.execute('DELETE FROM students WHERE id = ?', [id]);
+
+  if (result.affectedRows === 0) {
+    return null;
+  }
+
+  return getStudentById(id);
+}
+
 module.exports = {
   createStudentsTable,
   createStudent,
@@ -130,5 +188,7 @@ module.exports = {
   getStudentById,
   usnExists,
   emailExists,
-  getStudentCountsByBatch
+  getStudentCountsByBatch,
+  updateStudent,
+  deleteStudent
 };
