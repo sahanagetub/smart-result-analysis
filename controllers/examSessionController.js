@@ -113,9 +113,7 @@ async function getExamSessionStats(req, res) {
     const [inactive] = await pool.execute(
       'SELECT COUNT(*) AS count FROM exam_sessions WHERE status = ?', ['Inactive']
     );
-    const [total] = await pool.execute(
-      'SELECT COUNT(*) AS count FROM exam_sessions'
-    );
+    const [total] = await pool.execute('SELECT COUNT(*) AS count FROM exam_sessions');
 
     res.json({
       success: true,
@@ -131,6 +129,38 @@ async function getExamSessionStats(req, res) {
   }
 }
 
+async function updateExamSessionStatus(req, res) {
+  try {
+    const examSessionId = req.params.id;
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required.' });
+    }
+    const pool = require('../config/db').getPool();
+    if (!pool) {
+      return res.status(500).json({ success: false, message: 'Database pool unavailable.' });
+    }
+    const [result] = await pool.execute(
+      'UPDATE exam_sessions SET status = ? WHERE id = ?',
+      [status, examSessionId]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Exam session not found.' });
+    }
+    const [updated] = await pool.execute(
+      'SELECT id, session_name, status FROM exam_sessions WHERE id = ?', [examSessionId]
+    );
+    res.json({
+      success: true,
+      data: updated[0],
+      message: 'Exam session status updated successfully.'
+    });
+  } catch (err) {
+    console.error('Update exam session status error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update exam session status.' });
+  }
+}
+
 module.exports = {
   createExamSession,
   getAllExamSessions,
@@ -138,5 +168,6 @@ module.exports = {
   getExamSessionById,
   updateExamSession,
   deleteExamSession,
+  getExamSessionStats,
   updateExamSessionStatus
 };

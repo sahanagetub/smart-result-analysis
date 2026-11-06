@@ -35,6 +35,14 @@ async function getStudentService(id) {
   return student;
 }
 
+async function getExistingUsnsService() {
+  return studentModel.getAllUsns();
+}
+
+async function getExistingEmailsService() {
+  return studentModel.getAllEmails();
+}
+
 async function getCountsByBatchService() {
   return studentModel.getStudentCountsByBatch();
 }
@@ -79,5 +87,7 @@ module.exports = {
   getStudentService,
   getCountsByBatchService,
   updateStudentService,
-  deleteStudentService
+  deleteStudentService,
+  getExistingUsnsService,
+  getExistingEmailsService
 };

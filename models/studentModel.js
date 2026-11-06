@@ -123,6 +123,26 @@ async function getStudentCountsByBatch() {
   return result;
 }
 
+async function getAllUsns() {
+  if (isDbDisabled()) {
+    return [];
+  }
+  const pool = getPool();
+  if (!pool) return [];
+  const [rows] = await pool.execute(`SELECT usn FROM students`);
+  return rows.map((r) => r.usn);
+}
+
+async function getAllEmails() {
+  if (isDbDisabled()) {
+    return [];
+  }
+  const pool = getPool();
+  if (!pool) return [];
+  const [rows] = await pool.execute(`SELECT email FROM students`);
+  return rows.map((r) => r.email);
+}
+
 async function updateStudent(id, data) {
   if (isDbDisabled()) {
     throw new Error('Database integration is disabled.');
@@ -190,5 +210,7 @@ module.exports = {
   emailExists,
   getStudentCountsByBatch,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  getAllUsns,
+  getAllEmails
 };

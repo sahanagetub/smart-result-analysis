@@ -1,8 +1,5 @@
-const { isDbDisabled } = require('../config/db');
+const { getPool, isDbDisabled } = require('../config/db');
 
-// Provides dashboard statistics.
-// When MySQL is disabled, no fake statistics are returned; the dashboard
-// shows a demo-state message instead of presenting sample values as records.
 function getDashboardStats() {
   const dbAvailable = !isDbDisabled();
 
@@ -17,26 +14,74 @@ function getDashboardStats() {
     };
   }
 
-  // Sample values used only as demonstration data when DB is enabled but
-  // real tables are not yet implemented. Clearly marked as demo.
   return {
     dbAvailable: true,
-    demoData: true,
-    totalStudents: 120,
-    totalBatches: 6,
-    totalSubjects: 24,
-    totalSemesters: 4,
-    totalResults: 480
+    demoData: false,
+    totalStudents: null,
+    totalBatches: null,
+    totalSubjects: null,
+    totalSemesters: null,
+    totalResults: null
   };
+}
+
+async function getDashboardStatsAsync() {
+  const dbAvailable = !isDbDisabled();
+  if (!dbAvailable) {
+    return {
+      dbAvailable: false,
+      totalStudents: null,
+      totalBatches: null,
+      totalSubjects: null,
+      totalSemesters: null,
+      totalResults: null
+    };
+  }
+  const pool = getPool();
+  if (!pool) {
+    return {
+      dbAvailable: true,
+      demoData: false,
+      totalStudents: null,
+      totalBatches: null,
+      totalSubjects: null,
+      totalSemesters: null,
+      totalResults: null
+    };
+  }
+  try {
+    const [students] = await pool.execute('SELECT COUNT(*) AS cnt FROM students');
+    const [batches] = await pool.execute('SELECT COUNT(*) AS cnt FROM batches');
+    const [subjects] = await pool.execute('SELECT COUNT(*) AS cnt FROM subjects');
+    const [semesters] = await pool.execute('SELECT COUNT(*) AS cnt FROM semesters');
+    const [results] = await pool.execute('SELECT COUNT(*) AS cnt FROM results');
+    return {
+      dbAvailable: true,
+      demoData: false,
+      totalStudents: Number(students[0].cnt),
+      totalBatches: Number(batches[0].cnt),
+      totalSubjects: Number(subjects[0].cnt),
+      totalSemesters: Number(semesters[0].cnt),
+      totalResults: Number(results[0].cnt)
+    };
+  } catch (err) {
+    console.error('Dashboard stats error:', err.message);
+    return {
+      dbAvailable: true,
+      demoData: false,
+      totalStudents: null,
+      totalBatches: null,
+      totalSubjects: null,
+      totalSemesters: null,
+      totalResults: null
+    };
+  }
 }
 
 function getRecentActivity() {
   return [
-    { message: 'New batch "MCA 2024-26" created (sample)', time: '2 hours ago' },
-    { message: 'Student records updated for Semester 3 (sample)', time: '5 hours ago' },
-    { message: 'Result records imported (sample)', time: '1 day ago' },
-    { message: 'Subject list reviewed (sample)', time: '2 days ago' }
+    { message: 'System initialized.', time: 'Just now' }
   ];
 }
 
-module.exports = { getDashboardStats, getRecentActivity };
+module.exports = { getDashboardStats, getDashboardStatsAsync, getRecentActivity };

@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
 const studentController = require('../controllers/studentController');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const studentValidation = [
   body('usn').trim().notEmpty().withMessage('USN is required.').isLength({ max: 20 }).escape(),
@@ -38,7 +41,10 @@ router.put('/:id', requireAuth, studentController.updateStudent);
 // DELETE delete student
 router.delete('/:id', requireAuth, studentController.deleteStudent);
 
-// POST import students
-router.post('/import', requireAuth, studentController.importStudents);
+// POST import students (upload + parse + validate → preview)
+router.post('/import', requireAuth, upload.single('importFile'), studentController.importStudents);
+
+// POST confirm import (save validated students)
+router.post('/import/confirm', requireAuth, studentController.confirmImportStudents);
 
 module.exports = router;

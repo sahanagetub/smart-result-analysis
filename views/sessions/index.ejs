@@ -1,0 +1,73 @@
+<% layout('../layouts/main') -%>
+
+<div id="dbStatusBanner" class="status-banner status-warn" style="display:none;">
+  Database is disabled (demo mode). Exam session operations are unavailable until MySQL is enabled.
+</div>
+<div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+
+<div class="toolbar" style="margin-bottom:20px;">
+  <label>Semester: </label>
+  <select id="semesterSelect" style="padding:6px 10px; margin-right:16px;">
+    <option value="">Select a semester...</option>
+  </select>
+  <button id="addExamSessionBtn" class="btn btn-primary" style="display:none;">+ Add Exam Session</button>
+</div>
+
+<div class="card table-card">
+  <div class="table-wrapper">
+    <table id="examSessionsTable">
+      <thead>
+        <tr>
+          <th>Session Name</th>
+          <th>Semester</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="examSessionsTableBody">
+        <tr><td colspan="6" class="empty-row">Select a semester to view exam sessions.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="addExamSessionForm" class="card form-card" style="display:none; margin-top:20px;">
+  <div class="card-header"><h3>Add Exam Session</h3><button id="cancelExamSessionBtn" class="btn btn-secondary">Cancel</button></div>
+  <form id="examSessionForm" novalidate>
+    <input type="hidden" id="examSessionSemesterId" />
+    <input type="hidden" id="examSessionId" />
+    <div class="form-group">
+      <label for="sessionName">Session Name <span class="required">*</span></label>
+      <input type="text" id="sessionName" name="session_name" placeholder="e.g. December 2025 / January 2026" />
+      <span class="field-error" id="errSessionName"></span>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="startDate">Start Date</label>
+        <input type="date" id="startDate" name="start_date" />
+        <span class="field-error" id="errStartDate"></span>
+      </div>
+      <div class="form-group">
+        <label for="endDate">End Date</label>
+        <input type="date" id="endDate" name="end_date" />
+        <span class="field-error" id="errEndDate"></span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="sessionStatus">Status <span class="required">*</span></label>
+      <select id="sessionStatus" name="status">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <span class="field-error" id="errSessionStatus"></span>
+    </div>
+    <div class="form-actions" style="margin-top:12px;">
+      <button type="submit" id="saveExamSessionBtn" class="btn btn-primary">Save Exam Session</button>
+    </div>
+  </form>
+</div>
+
+<script src="/js/main.js"></script>
+<script src="/js/examSessions.js"></script>

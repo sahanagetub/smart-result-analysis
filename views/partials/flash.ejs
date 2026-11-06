@@ -1,0 +1,3 @@
+<% if (locals.message || locals.error) { %>
+  <div class="status-banner status-<%= locals.error ? 'error' : 'info' %>"><%= locals.error || locals.message %></div>
+<% } %>

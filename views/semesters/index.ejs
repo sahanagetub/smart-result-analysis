@@ -1,0 +1,67 @@
+<% layout('../layouts/main') -%>
+
+<div id="dbStatusBanner" class="status-banner status-warn" style="display:none;">
+  Database is disabled (demo mode). Semester operations are unavailable until MySQL is enabled.
+</div>
+<div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+
+<div class="toolbar" style="margin-bottom:20px;">
+  <label>Batch: </label>
+  <select id="batchSelect" style="padding:6px 10px; margin-right:16px;">
+    <option value="">Select a batch...</option>
+  </select>
+  <button id="addSemesterBtn" class="btn btn-primary" style="display:none;">+ Add Semester</button>
+</div>
+
+<div class="card table-card">
+  <div class="table-wrapper">
+    <table id="semestersTable">
+      <thead>
+        <tr>
+          <th>Semester</th>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Exam Sessions</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="semestersTableBody">
+        <tr><td colspan="5" class="empty-row">Select a batch to view semesters.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="addSemesterForm" class="card form-card" style="display:none; margin-top:20px;">
+  <div class="card-header"><h3>Add Semester</h3><button id="cancelSemesterBtn" class="btn btn-secondary">Cancel</button></div>
+  <form id="semesterForm" novalidate>
+    <input type="hidden" id="semesterBatchId" />
+    <input type="hidden" id="semesterId" />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="semesterNumber">Semester Number <span class="required">*</span></label>
+        <input type="number" id="semesterNumber" name="semester_number" min="1" max="12" placeholder="e.g. 1" />
+        <span class="field-error" id="errSemesterNumber"></span>
+      </div>
+      <div class="form-group">
+        <label for="semesterName">Semester Name <span class="required">*</span></label>
+        <input type="text" id="semesterName" name="semester_name" placeholder="e.g. Semester 1" />
+        <span class="field-error" id="errSemesterName"></span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="semesterStatus">Status <span class="required">*</span></label>
+      <select id="semesterStatus" name="status">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <span class="field-error" id="errSemesterStatus"></span>
+    </div>
+    <div class="form-actions" style="margin-top:12px;">
+      <button type="submit" id="saveSemesterBtn" class="btn btn-primary">Save Semester</button>
+    </div>
+  </form>
+</div>
+
+<script src="/js/main.js"></script>
+<script src="/js/semesters.js"></script>

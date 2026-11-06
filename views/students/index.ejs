@@ -1,0 +1,101 @@
+<% layout('../layouts/main') -%>
+
+<div id="dbStatusBanner" class="status-banner status-warn" style="display:none;">
+  Database is disabled (demo mode). Student operations are unavailable until MySQL is enabled.
+</div>
+<div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 id="batchName">--</h3>
+    <p id="batchAcademicYear">--</p>
+  </div>
+  <div class="card-body">
+    <div class="toolbar">
+      <div class="search-box"><input type="text" id="studentSearch" placeholder="Search students by USN or Name..." /></div>
+      <div class="btn-group">
+        <button id="addStudentBtn" class="btn btn-primary">+ Add Student</button>
+        <button id="importStudentsBtn" class="btn btn-secondary">Import Students</button>
+        <a href="/batches" class="btn btn-link text-reset mb-2" style="display:none;" id="backToBatchesLink">Back to Batches</a>
+      </div>
+    </div>
+
+    <!-- Import Students Form -->
+    <div id="importStudentsForm" class="card form-card" style="display:none; margin-top: 16px;">
+      <div class="card-header">
+        <h3>Import Students</h3>
+        <button id="cancelImportBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+      <form id="importStudentForm" enctype="multipart/form-data" novalidate>
+        <input type="hidden" id="importBatchId" name="batch_id" value="<%= batchId %>" />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="importFile">Select File </label>
+            <input type="file" id="importFile" name="importFile" accept=".csv,.xlsx" required />
+          </div>
+        </div>
+        <div id="importPreview" style="margin-top:12px; display:none;"></div>
+        <div id="importStatus" style="margin-top: 12px; display:none;"></div>
+        <div class="form-actions" style="margin-top:12px;">
+          <button type="button" id="confirmImportBtn" class="btn btn-primary" style="display:none;">Confirm Import</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card table-card">
+      <div class="table-wrapper">
+        <table id="studentsTable">
+          <thead>
+            <tr>
+              <th>USN</th>
+              <th>Student Name</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody">
+            <tr><td colspan="6" class="empty-row">Loading students...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="addStudentForm" class="card form-card" style="display:none;">
+  <div class="card-header">
+    <h3 id="formTitle">Add Student</h3>
+    <button id="cancelFormBtn" class="btn btn-secondary">Cancel</button>
+  </div>
+  <form id="studentForm" class="student-form" novalidate>
+    <input type="hidden" id="studentId" />
+    <input type="hidden" id="batchId" />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="usn">USN <span class="required">*</span></label>
+        <input type="text" id="usn" name="usn" maxlength="20" required />
+        <span class="field-error" id="errUsn"></span>
+      </div>
+      <div class="form-group">
+        <label for="name">Student Name <span class="required">*</span></label>
+        <input type="text" id="name" name="name" required />
+        <span class="field-error" id="errName"></span>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">Email <span class="required">*</span></label>
+        <input type="email" id="email" name="email" required />
+        <span class="field-error" id="errEmail"></span>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" id="saveStudentBtn" class="btn btn-primary">Save Student</button>
+    </div>
+  </form>
+</div>
+
+<script src="/js/main.js"></script>
+<script src="/js/students.js"></script>

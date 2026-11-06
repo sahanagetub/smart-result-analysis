@@ -1,0 +1,107 @@
+<% layout('../layouts/main') -%>
+
+<div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+
+<div class="toolbar" style="margin-bottom:20px;">
+  <a href="/batches" class="btn btn-link text-reset">&larr; Back to Batches</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Batch Details</h3>
+  </div>
+  <div class="card-body">
+    <p id="batchLoading">Loading batch details...</p>
+    <div id="batchDetailContent" style="display:none;">
+      <div class="form-row">
+        <div class="form-group">
+          <label><strong>Batch Name</strong></label>
+          <p id="detailBatchName" class="muted"></p>
+        </div>
+        <div class="form-group">
+          <label><strong>Academic Years</strong></label>
+          <p id="detailBatchYears" class="muted"></p>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label><strong>Status</strong></label>
+          <span id="detailBatchStatus" class="muted"></span>
+        </div>
+        <div class="form-group">
+          <label><strong>Student Count</strong></label>
+          <p id="detailStudentCount" class="muted"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card table-card" style="margin-top:20px;">
+  <div class="card-header">
+    <h3>Students in this Batch</h3>
+    <a href="/students?batchId=<%= batchId %>" class="btn btn-primary">Manage Students</a>
+  </div>
+  <div class="table-wrapper">
+    <table id="batchStudentsTable">
+      <thead>
+        <tr>
+          <th>USN</th>
+          <th>Student Name</th>
+          <th>Email</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody id="batchStudentsTableBody">
+        <tr><td colspan="4" class="empty-row">Loading students...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  const batchId = '<%= batchId %>';
+  async function loadBatch() {
+    try {
+      const res = await fetch('/api/batches/' + batchId, { credentials: 'include' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed to load batch.');
+      const b = data.data;
+      document.getElementById('batchLoading').style.display = 'none';
+      document.getElementById('batchDetailContent').style.display = 'block';
+      document.getElementById('detailBatchName').textContent = b.batch_name;
+      document.getElementById('detailBatchYears').textContent = b.start_year + ' - ' + b.end_year;
+      document.getElementById('detailBatchStatus').textContent = b.status;
+    } catch (err) {
+      document.getElementById('batchLoading').textContent = 'Error: ' + err.message;
+    }
+  }
+  async function loadStudents() {
+    try {
+      const res = await fetch('/api/students/batch/' + batchId, { credentials: 'include' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const data = await res.json();
+      const tbody = document.getElementById('batchStudentsTableBody');
+      if (!data.success || !data.data || data.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No students found.</td></tr>';
+        document.getElementById('detailStudentCount').textContent = '0';
+        return;
+      }
+      document.getElementById('detailStudentCount').textContent = data.data.length;
+      tbody.innerHTML = data.data.map(s => `
+        <tr>
+          <td>${s.usn}</td>
+          <td>${s.name}</td>
+          <td>${s.email}</td>
+          <td>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '-'}</td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  loadBatch();
+  loadStudents();
+</script>

@@ -1,6 +1,10 @@
 const semesterModel = require('../models/semesterModel');
 const { isDbDisabled } = require('../config/db');
 
+async function initSemestersTable() {
+  await semesterModel.createSemestersTable();
+}
+
 async function listSemestersService(batchId, search = '') {
   return semesterModel.getSemestersByBatch(batchId, search);
 }
@@ -108,6 +112,7 @@ async function deleteSemesterService(id) {
 }
 
 module.exports = {
+  initSemestersTable,
   listSemestersService,
   getSemesterByIdService,
   createSemesterService,

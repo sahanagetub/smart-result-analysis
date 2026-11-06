@@ -1,0 +1,33 @@
+<li><a href="/dashboard" class="nav-link <%= active === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
+
+<li class="nav-group">Academic Management</li>
+<li><a href="/batches" class="nav-link <%= active === 'batches' ? 'active' : '' %>">Batches</a></li>
+<li><a href="/students" class="nav-link <%= active === 'students' ? 'active' : '' %>">Students</a></li>
+<li><a href="/semesters" class="nav-link <%= active === 'semesters' ? 'active' : '' %>">Semesters</a></li>
+<li><a href="/sessions" class="nav-link <%= active === 'sessions' ? 'active' : '' %>">Exam Sessions</a></li>
+<li><a href="/subjects" class="nav-link <%= active === 'subjects' ? 'active' : '' %>">Subjects</a></li>
+
+<li class="nav-group">Result Management</li>
+<li><a href="#" class="nav-link disabled-link" aria-disabled="true">Upload Result <span class="lock">🔒</span></a></li>
+<li><a href="/results" class="nav-link <%= active === 'results' ? 'active' : '' %>">Result Records</a></li>
+
+<li class="nav-group">Analytics</li>
+<li><a href="/analytics" class="nav-link <%= active === 'analytics' ? 'active' : '' %>">Overview</a></li>
+<li><a href="/analytics" class="nav-link <%= active === 'analytics' ? 'active' : '' %>">Class Analysis</a></li>
+<li><a href="/analytics" class="nav-link <%= active === 'analytics' ? 'active' : '' %>">Subject Analysis</a></li>
+<li><a href="/analytics" class="nav-link <%= active === 'analytics' ? 'active' : '' %>">Toppers</a></li>
+
+<li class="nav-group">Reports</li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Consolidated Result</a></li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Class Result</a></li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Topper Report</a></li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Failed Students</a></li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Subject-wise Report</a></li>
+<li><a href="/reports" class="nav-link <%= active === 'reports' ? 'active' : '' %>">Student Report</a></li>
+
+<li style="margin-top:24px; padding:0 24px; border-top:1px solid #334155;"></li>
+<li>
+  <form id="sidebarLogoutForm" action="/api/auth/logout" method="POST" style="display:inline;" onsubmit="event.preventDefault(); fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => { window.location.href = '/login'; }); return false;">
+    <button type="submit" class="nav-link" style="color:#f87171; background:none; border:none; width:100%; text-align:left; cursor:pointer;">Logout</button>
+  </form>
+</li>

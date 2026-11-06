@@ -1,0 +1,43 @@
+<% layout('../layouts/main') -%>
+
+<div id="dbStatus" class="status-banner" style="display:none;"></div>
+<div class="cards-grid">
+  <div class="card stat-card">
+    <h3>Overall Pass %</h3>
+    <p class="stat-value" id="passPercent">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Results</h3>
+    <p class="stat-value" id="totalResults">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Distinctions</h3>
+    <p class="stat-value" id="distinctions">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Failed</h3>
+    <p class="stat-value" id="failedCount">-</p>
+  </div>
+</div>
+
+<div class="overview-grid">
+  <div class="card overview-card">
+    <h3>Class Analysis</h3>
+    <div class="chart-wrap"><canvas id="classAnalysisChart"></canvas></div>
+  </div>
+  <div class="card overview-card">
+    <h3>Subject Analysis</h3>
+    <div class="chart-wrap"><canvas id="subjectAnalysisChart"></canvas></div>
+  </div>
+  <div class="card overview-card">
+    <h3>Toppers</h3>
+    <div class="chart-wrap"><canvas id="toppersChart"></canvas></div>
+  </div>
+</div>
+
+<div class="placeholder-box">
+  <p>Enable MySQL and upload results to view real analytics.</p>
+</div>
+
+<script src="/vendor/chart.js/chart.umd.js"></script>
+<script src="/js/analytics.js"></script>

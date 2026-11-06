@@ -10,8 +10,17 @@ const routes = require('./routes');
 const { testConnection } = require('./config/db');
 const { initBatchesTable } = require('./services/batchService');
 const { initUsersTable } = require('./services/userService');
+const { initStudentsTable } = require('./services/studentService');
+const { initSemestersTable } = require('./services/semesterService');
+const { initExamSessionsTable } = require('./services/examSessionService');
+const { initSubjectsTable } = require('./services/subjectService');
+const { initResultsTable } = require('./services/resultService');
 
 const app = express();
+
+// View engine (EJS)
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
 // Security headers
 app.use(helmet());
@@ -41,23 +50,22 @@ app.use(session({
   }
 }));
 
-// Protect HTML module pages before static serving
-const protectedPages = [
-  '/dashboard.html', '/batches.html', '/students.html', '/sessions.html',
-  '/semesters.html', '/subjects.html', '/results.html', '/analytics.html', '/reports.html'
-];
+// Expose current user to all views
 app.use((req, res, next) => {
-  if (protectedPages.includes(req.path)) {
-    return requireAuth(req, res, next);
-  }
+  res.locals.user = (req.session && req.session.user) || null;
+  res.locals.isAuthenticated = !!res.locals.user;
   next();
 });
 
-// Static assets
+// Static assets (CSS, JS, images)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve Chart.js from npm package (only the dist folder)
 app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules', 'chart.js', 'dist')));
+
+// Page routes (server-rendered EJS) — must come before API routes
+const pageRoutes = require('./routes/pageRoutes');
+app.use('/', pageRoutes);
 
 // Routes (API + root redirect)
 app.use('/', routes);
@@ -66,10 +74,22 @@ app.use('/', routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Test DB connection (non-blocking)
-testConnection().catch((err) => console.error('DB test error:', err));
-initBatchesTable().catch((err) => console.error('Batches table init error:', err));
-initUsersTable().catch((err) => console.error('Users table init error:', err));
-initStudentsTable().catch((err) => console.error('Students table init error:', err));
+// Initialize database tables (non-blocking, auto-run on startup)
+async function initializeDatabase() {
+  try {
+    await initBatchesTable().catch((err) => console.error('Batches table init error:', err));
+    await initUsersTable().catch((err) => console.error('Users table init error:', err));
+    await initStudentsTable().catch((err) => console.error('Students table init error:', err));
+    await initSemestersTable().catch((err) => console.error('Semesters table init error:', err));
+    await initExamSessionsTable().catch((err) => console.error('Exam sessions table init error:', err));
+    await initSubjectsTable().catch((err) => console.error('Subjects table init error:', err));
+    await initResultsTable().catch((err) => console.error('Results table init error:', err));
+    console.log('Database tables initialization complete.');
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+  }
+}
+
+initializeDatabase();
 
 module.exports = app;

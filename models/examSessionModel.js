@@ -9,7 +9,7 @@ async function createExamSessionsTable() {
   if (!pool) return;
   const conn = await pool.getConnection();
   try {
-    await conn.execute(\`
+    await conn.execute(`
       CREATE TABLE IF NOT EXISTS exam_sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         semester_id INT NOT NULL,
@@ -23,7 +23,7 @@ async function createExamSessionsTable() {
         INDEX idx_session_name (semester_id, session_name),
         CONSTRAINT fk_exam_sessions_semesters FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    \`);
+    `);
     console.log('exam_sessions table ensured.');
   } catch (err) {
     console.error('Failed to create exam_sessions table:', err.message);

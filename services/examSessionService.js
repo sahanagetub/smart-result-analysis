@@ -1,5 +1,9 @@
 const examSessionModel = require('../models/examSessionModel');
 
+async function initExamSessionsTable() {
+  await examSessionModel.createExamSessionsTable();
+}
+
 async function createExamSessionService(data) {
   // Validate semester existence
   const semesterCheck = await require('../config/db').getPool().execute(
@@ -161,6 +165,7 @@ async function updateExamSessionStatusService(id, status) {
 }
 
 module.exports = {
+  initExamSessionsTable,
   createExamSessionService,
   getAllExamSessionsService,
   getExamSessionsBySemesterService,

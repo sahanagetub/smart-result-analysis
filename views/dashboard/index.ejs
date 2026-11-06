@@ -1,0 +1,41 @@
+<div id="dbStatus" class="status-banner" style="display:none;"></div>
+<div id="dashboardError" class="status-banner status-error" style="display:none;"></div>
+
+<div class="cards-grid">
+  <div class="card stat-card">
+    <h3>Total Students</h3>
+    <p class="stat-value" id="totalStudents">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Batches</h3>
+    <p class="stat-value" id="totalBatches">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Subjects</h3>
+    <p class="stat-value" id="totalSubjects">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Semesters</h3>
+    <p class="stat-value" id="totalSemesters">-</p>
+  </div>
+</div>
+
+<div class="overview-grid">
+  <div class="card overview-card">
+    <h3>Academic Overview</h3>
+    <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+  </div>
+  <div class="card overview-card">
+    <h3>Recent Activity</h3>
+    <ul id="recentActivityList" class="activity-list">
+      <li>Loading...</li>
+    </ul>
+  </div>
+</div>
+
+<div class="placeholder-box">
+  <p>Additional analytics and charts will be available in the next phase.</p>
+</div>
+
+<script src="/vendor/chart.js/chart.umd.js"></script>
+<script src="/js/dashboard.js"></script>

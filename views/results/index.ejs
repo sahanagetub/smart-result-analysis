@@ -1,0 +1,36 @@
+<% layout('../layouts/main') -%>
+
+<div id="dbStatusBanner" class="status-banner status-warn" style="display:none;">
+  Database is disabled (demo mode). Result operations are unavailable until MySQL is enabled.
+</div>
+<div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
+
+<div class="toolbar" style="margin-bottom:20px;">
+  <a href="/results/upload" class="btn btn-primary">Upload Result</a>
+  <div class="search-box"><input type="text" id="resultSearch" placeholder="Search by USN, student name, or subject..." /></div>
+</div>
+
+<div class="card table-card">
+  <div class="table-wrapper">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>USN</th>
+          <th>Student Name</th>
+          <th>Subject</th>
+          <th>Marks Obtained</th>
+          <th>Max Marks</th>
+          <th>Grade</th>
+          <th>Status</th>
+          <th>Exam Session</th>
+        </tr>
+      </thead>
+      <tbody id="resultsTableBody">
+        <tr><td colspan="8" class="empty-row">No result records found.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script src="/js/results.js"></script>

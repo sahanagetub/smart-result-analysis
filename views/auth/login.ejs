@@ -1,0 +1,29 @@
+<div class="login-card">
+  <div class="login-brand">
+    <img src="/images/logo.svg" alt="Logo" class="logo" />
+    <h1>Smart Result Analysis</h1>
+    <p class="muted">Clerk Login Portal</p>
+  </div>
+
+  <% var hasError = error && error.trim() ? true : false; %>
+  <% if (hasError) { %>
+    <div class="status-banner status-error"><%= error %></div>
+  <% } %>
+
+  <form id="loginForm" class="login-form" novalidate>
+    <label for="username">Username or Email</label>
+    <input type="text" id="username" name="username" placeholder="Enter username or email" autocomplete="username" />
+
+    <label for="password">Password</label>
+    <div class="password-field">
+      <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" />
+      <button type="button" id="togglePassword" class="toggle-password" aria-label="Show password">Show</button>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+    <div id="loginError" class="login-error" role="alert"></div>
+  </form>
+  <p class="muted small">Foundation credentials: admin / Admin@123</p>
+</div>
+
+<script src="/js/auth.js"></script>
