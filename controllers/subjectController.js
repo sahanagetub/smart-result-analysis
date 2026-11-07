@@ -14,7 +14,9 @@ async function getAllSubjects(req, res, next) {
   try {
     const search = req.query.search || '';
     const subjects = await subjectService.listSubjectsService(search);
-    res.json({ success: true, data: subjects });
+    // Get counts for pagination
+    const counts = await subjectModel.getSubjectsCount(search);
+    res.json({ success: true, data: subjects, counts: counts });
   } catch (err) {
     next(err);
   }

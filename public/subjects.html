@@ -1,3 +1,4 @@
+<!-- Subject Management page content inserted by Cline -->
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -54,9 +55,89 @@
         <h1>Subjects</h1>
         <p>Manage subjects.</p>
       </div>
-      <div class="placeholder-box">
-        <h2>Under Development</h2>
-        <p>This module will be implemented in the next phase.</p>
+      <div class="card form-card">
+        <div class="card-header"><h3>Add New Subject</h3><button id="cancelFormBtn" class="btn btn-secondary">Cancel</button></div>
+        <form id="subjectForm" novalidate>
+          <input type="hidden" id="subjectId" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="semesterSelect">Semester <span class="required">*</span></label>
+              <select id="semesterSelect" name="semester_id" required>
+                <option value="">Select a semester...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="subjectCode">Subject Code <span class="required">*</span></label>
+              <input type="text" id="subjectCode" name="subject_code" placeholder="e.g. MA101" maxlength="20" required />
+              <span class="field-error" id="errSubjectCode"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="subjectName">Subject Name <span class="required">*</span></label>
+              <input type="text" id="subjectName" name="subject_name" placeholder="e.g. Mathematics" maxlength="100" required />
+              <span class="field-error" id="errSubjectName"></span>
+            </div>
+            <div class="form-group">
+              <label for="credits">Credits <span class="required">*</span></label>
+              <input type="number" id="credits" name="credits" min="1" max="10" placeholder="e.g. 4" required />
+              <span class="field-error" id="errCredits"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="maxInternal">Max Internal Marks <span class="required">*</span></label>
+              <input type="number" id="maxInternal" name="max_internal_marks" min="0" max="100" placeholder="e.g. 40" required />
+              <span class="field-error" id="errMaxInternal"></span>
+            </div>
+            <div class="form-group">
+              <label for="maxExternal">Max External Marks <span class="required">*</span></label>
+              <input type="number" id="maxExternal" name="max_external_marks" min="0" max="100" placeholder="e.g. 60" required />
+              <span class="field-error" id="errMaxExternal"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="totalMaximum">Total Maximum Marks <span class="required">*</span></label>
+              <input type="number" id="totalMaximum" name="total_maximum_marks" min="0" max="200" placeholder="e.g. 100" required />
+              <span class="field-error" id="errTotalMaximum"></span>
+            </div>
+          </div>
+          <div class="form-actions"><button type="submit" id="saveSubjectBtn" class="btn btn-primary">Add Subject</button></div>
+        </form>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-wrapper">
+          <table id="subjectsTable">
+            <thead>
+              <tr>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Semester</th>
+                <th>Max Internal</th>
+                <th>Max External</th>
+                <th>Total</th>
+                <th>Credits</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="subjectsTableBody"><tr><td colspan="8" class="empty-row">Loading subjects...</td></tr></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="8">
+                <div class="search-box">
+                  <input type="text" id="subjectSearch" placeholder="Search by code or name..." />
+                  <button id="clearSearch">Clear Search</button>
+                </div>
+                <div class="pagination">
+                  <button id="prevPage" class="btn btn-link disabled">Prev</button>
+                  <span id="pageInfo">1 of 1</span>
+                  <button id="nextPage" class="btn btn-link">Next</button>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
       </div>
     </main>
   </div>
