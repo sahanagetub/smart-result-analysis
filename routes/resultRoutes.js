@@ -27,6 +27,9 @@ router.get('/', requireAuth, resultController.getAllResults);
 router.get('/stats', requireAuth, resultController.getResultStats);
 router.get('/session/:examSessionId', requireAuth, resultController.getResultsByExamSession);
 router.post('/', requireAuth, requireStaff, resultValidation, handleValidation, resultController.createResult);
+
+// Upload Result - DISABLED: No PDF extraction, file parsing, OCR, or actual result uploading
+// Feature to be implemented in Phase 8 second half
 router.delete('/:id', requireAuth, requireStaff, resultController.deleteResult);
 
 module.exports = router;

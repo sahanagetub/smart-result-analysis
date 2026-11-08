@@ -2,13 +2,14 @@
 
 <div class="card form-card">
   <div class="card-header">
-    <h3>Upload Result</h3>
+    <h3>Upload Result 🔒</h3>
     <a href="/results" class="btn btn-link text-reset">&larr; Back to Result Records</a>
   </div>
   <div class="card-body">
-    <div class="status-banner status-info">
-      <strong>Coming soon.</strong> Result upload will accept CSV/XLSX files with columns: USN, Subject Code, Marks Obtained, Max Marks.
+    <div class="status-banner status-warning">
+      <strong>Disabled.</strong> Result upload functionality is not yet enabled. PDF extraction, file parsing, and OCR are not implemented.
     </div>
+    <p class="text-muted small">This feature will be available in a future phase.</p>
     <form id="resultUploadForm" enctype="multipart/form-data" novalidate style="margin-top:20px; display:none;">
       <div class="form-group">
         <label for="resultFile">Select File <span class="required">*</span></label>
@@ -22,7 +23,7 @@
       </div>
       <div id="resultPreview" style="margin-top:12px; display:none;"></div>
       <div class="form-actions" style="margin-top:12px;">
-        <button type="submit" id="confirmResultUploadBtn" class="btn btn-primary">Confirm Upload</button>
+        <button type="submit" id="confirmResultUploadBtn" class="btn btn-primary" disabled>Confirm Upload</button>
       </div>
     </form>
   </div>
