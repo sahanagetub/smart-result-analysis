@@ -69,41 +69,196 @@
       <div id="dbStatus" class="status-banner" style="display:none;"></div>
       <div id="dashboardError" class="status-banner status-error" style="display:none;"></div>
 
-      <div class="cards-grid">
-        <div class="card stat-card">
-          <h3>Total Students</h3>
-          <p class="stat-value" id="totalStudents">-</p>
+      <!-- Summary Cards Section -->
+      <section class="summary-section">
+        <div class="section-header">
+          <h2>Dashboard Summary</h2>
         </div>
-        <div class="card stat-card">
-          <h3>Total Batches</h3>
-          <p class="stat-value" id="totalBatches">-</p>
+        <div class="cards-grid">
+          <div class="card stat-card"><h3>Total Students</h3><p class="stat-value" id="totalStudents">Loading...</p></div>
+          <div class="card stat-card"><h3>Results Available</h3><p class="stat-value" id="resultsAvailable">Loading...</p></div>
+          <div class="card stat-card"><h3>Passed Students</h3><p class="stat-value" id="passedStudents">Loading...</p></div>
+          <div class="card stat-card"><h3>Failed Students</h3><p class="stat-value" id="failedStudents">Loading...</p></div>
+          <div class="card stat-card"><h3>Pass Percentage</h3><p class="stat-value" id="overallPassPercentage">Loading...</p></div>
+          <div class="card stat-card"><h3>Total Subjects</h3><p class="stat-value" id="totalSubjects">Loading...</p></div>
         </div>
-        <div class="card stat-card">
-          <h3>Total Subjects</h3>
-          <p class="stat-value" id="totalSubjects">-</p>
-        </div>
-        <div class="card stat-card">
-          <h3>Total Semesters</h3>
-          <p class="stat-value" id="totalSemesters">-</p>
-        </div>
-      </div>
+      </section>
+      <!-- /Summary Cards Section -->
 
       <div class="overview-grid">
         <div class="card overview-card">
           <h3>Academic Overview</h3>
           <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+          <p class="stat-value" id="overviewPassPercentage">-</p>
         </div>
         <div class="card overview-card">
-          <h3>Recent Activity</h3>
-          <ul id="recentActivityList" class="activity-list">
-            <li>Loading...</li>
-          </ul>
+          <h3>Average Marks</h3>
+          <p class="stat-value" id="averageMarks">-</p>
+        </div>
+        <div class="card overview-card">
+          <h3>Highest Marks</h3>
+          <p class="stat-value" id="highestMarks">-</p>
+        </div>
+        <div class="card overview-card">
+          <h3>Lowest Marks</h3>
+          <p class="stat-value" id="lowestMarks">-</p>
         </div>
       </div>
 
-      <div class="placeholder-box">
-        <p>Additional analytics and charts will be available in the next phase.</p>
+      <div id="loadingState" class="placeholder-box" style="display:none;"><p>Loading dashboard data...</p></div>
+
+      <div id="errorState" class="placeholder-box status-error" style="display:none;"><p id="errorMessage">Error loading dashboard data. Please try again.</p></div>
+
+      <div id="emptyState" class="placeholder-box" style="display:none;"><p>No data available. Please ensure results have been published.</p></div>
+
+      <!-- Subject Performance Bar Chart -->
+      <div class="bar-chart-section">
+        <div class="section-header">
+          <h2>Subject Performance</h2>
+        </div>
+        <div class="card chart-card">
+          <h3 class="chart-title">Subject Average Marks</h3>
+          <div class="chart-wrapper">
+            <canvas id="subjectBarChart"></canvas>
+          </div>
+          <div class="chart-legend" id="subjectLegend"></div>
+        </div>
       </div>
+      <!-- /Subject Performance Bar Chart -->
+
+      <!-- Top Performers Section -->
+      <section class="top-performers-section">
+        <div class="section-header">
+          <h2>Top Performers</h2>
+        </div>
+        <div class="table-responsive">
+          <table class="top-performers-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>USN</th>
+                <th>Student Name</th>
+                <th>Batch</th>
+                <th>Average %</th>
+              </tr>
+            </thead>
+            <tbody id="topPerformersBody">
+              <tr>
+                <td colspan="5" class="no-data">No data available</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- /Top Performers Section -->
+
+      <!-- Average Marks Per Subject Section -->
+      <section class="subject-averages-section">
+        <div class="section-header">
+          <h2>Average Marks Per Subject</h2>
+        </div>
+        <div class="table-responsive">
+          <table class="subject-averages-table">
+            <thead>
+              <tr>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Average Marks</th>
+                <th>Max Marks</th>
+                <th>Students Appeared</th>
+              </tr>
+            </thead>
+            <tbody id="subjectAveragesBody">
+              <tr>
+                <td colspan="5" class="no-data">No data available</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- /Average Marks Per Subject Section -->
+
+      <!-- Overall Class Performance Section -->
+      <section class="overall-performance-section">
+        <div class="section-header">
+          <h2>Overall Class Performance</h2>
+        </div>
+        <div class="cards-grid">
+          <div class="card stat-card">
+            <h3>Total Appeared</h3>
+            <p class="stat-value" id="totalAppeared">-</p>
+          </div>
+          <div class="card stat-card">
+            <h3>Overall Average</h3>
+            <p class="stat-value" id="overallAverage">-</p>
+          </div>
+          <div class="card stat-card">
+            <h3>Highest %</h3>
+            <p class="stat-value" id="highestPercentage">-</p>
+          </div>
+          <div class="card stat-card">
+            <h3>Lowest %</h3>
+            <p class="stat-value" id="lowestPercentage">-</p>
+          </div>
+        </div>
+      </section>
+      <!-- /Overall Class Performance Section -->
+
+      <!-- Result Distribution Section -->
+      <section class="result-distribution-section">
+        <div class="section-header">
+          <h2>Result Distribution</h2>
+        </div>
+        <div class="distribution-charts">
+          <div class="distribution-card">
+            <h3>90–100%</h3>
+            <div class="bar-fill" style="width: 0%"><span class="bar-value">0</span></div>
+          </div>
+          <div class="distribution-card">
+            <h3>80–89%</h3>
+            <div class="bar-fill" style="width: 0%"><span class="bar-value">0</span></div>
+          </div>
+          <div class="distribution-card">
+            <h3>70–79%</h3>
+            <div class="bar-fill" style="width: 0%"><span class="bar-value">0</span></div>
+          </div>
+          <div class="distribution-card">
+            <h3>60–69%</h3>
+            <div class="bar-fill" style="width: 0%"><span class="bar-value">0</span></div>
+          </div>
+          <div class="distribution-card">
+            <h3>Below 60%</h3>
+            <div class="bar-fill" style="width: 0%"><span class="bar-value">0</span></div>
+          </div>
+        </div>
+      </section>
+      <!-- /Result Distribution Section -->
+
+      <!-- Subject-wise Pass/Fail Analysis Section -->
+      <section class="subject-pass-fail-section">
+        <div class="section-header">
+          <h2>Subject-wise Pass/Fail Analysis</h2>
+        </div>
+        <div class="table-responsive">
+          <table class="subject-pass-fail-table">
+            <thead>
+              <tr>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Total Appeared</th>
+              </tr>
+            </thead>
+            <tbody id="subjectPassFailBody">
+              <tr>
+                <td colspan="5" class="no-data">No data available</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- /Subject-wise Pass/Fail Analysis Section -->
     </main>
   </div>
 
