@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelFormBtn = document.getElementById('cancelFormBtn');
   const formTitle = document.getElementById('formTitle');
   const searchInput = document.getElementById('searchBatches');
+  const statusFilter = document.getElementById('batchStatusFilter');
   const tableBody = document.getElementById('batchesTableBody');
 
   const batchIdInput = document.getElementById('batchId');
@@ -25,6 +26,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let editId = null;
   let batches = [];
+  let csrfToken = '';
+
+  async function getCsrfToken() {
+    if (csrfToken) return csrfToken;
+    const response = await fetch('/api/auth/csrf', { credentials: 'include' });
+    const data = await response.json();
+    if (!response.ok || !data.csrfToken) throw new Error(data.message || 'Could not get a security token. Reload the page and try again.');
+    csrfToken = data.csrfToken;
+    return csrfToken;
+  }
 
   function clearErrors() {
     Object.values(errEls).forEach((e) => { if (e) e.textContent = ''; });
@@ -70,6 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderTable(list) {
+    const selectedStatus = statusFilter ? statusFilter.value : '';
+    if (selectedStatus) list = list.filter((batch) => batch.status === selectedStatus);
     tableBody.innerHTML = '';
     if (!list || list.length === 0) {
       tableBody.innerHTML = '<tr><td colspan="7" class="empty-row">No batches found.</td></tr>';
@@ -87,9 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${b.student_count !== undefined ? b.student_count : 0}</td>
         <td>${created}</td>
         <td class="action-links">
-          <a href="#" class="action-edit" data-id="${b.id}">Edit</a>
-          <a href="#" class="action-status" data-id="${b.id}" data-status="${b.status}">${b.status === 'Active' ? 'Deactivate' : 'Activate'}</a>
-          <a href="#" class="action-delete" data-id="${b.id}" style="color:#dc2626;">Delete</a>
+          <button type="button" class="action-btn action-edit" data-id="${b.id}" aria-label="Edit ${escapeHtml(b.batch_name)}" title="Edit batch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5 5 5M4 20l4.2-.8L19 8.4 15.6 5 4.8 15.8z"/></svg><span>Edit</span></button>
+          <button type="button" class="action-btn action-status" data-id="${b.id}" data-status="${b.status}" aria-label="${b.status === 'Active' ? 'Deactivate' : 'Activate'} ${escapeHtml(b.batch_name)}" title="${b.status === 'Active' ? 'Deactivate' : 'Activate'} batch"><svg viewBox="0 0 24 24" aria-hidden="true">${b.status === 'Active' ? '<path d="M12 3v9m6.4-5.4a8 8 0 1 1-12.8 0"/>' : '<path d="M12 3v9m-4-4 4 4 4-4M5.6 7.6a8 8 0 1 0 12.8 0"/>'}</svg><span>${b.status === 'Active' ? 'Deactivate' : 'Activate'}</span></button>
+          <button type="button" class="action-btn action-delete" data-id="${b.id}" aria-label="Delete ${escapeHtml(b.batch_name)}" title="Delete batch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg><span>Delete</span></button>
         </td>
       `;
       tableBody.appendChild(tr);
@@ -136,9 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
     if (!confirm(`Are you sure you want to ${newStatus.toLowerCase()} this batch?`)) return;
     try {
+      const token = await getCsrfToken();
       const res = await fetch(`/api/batches/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
         body: JSON.stringify({ status: newStatus }),
         credentials: 'include'
       });
@@ -155,8 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteBatch(id) {
     if (!confirm('Are you sure you want to delete this batch?')) return;
     try {
+      const token = await getCsrfToken();
       const res = await fetch(`/api/batches/${id}`, {
         method: 'DELETE',
+        headers: { 'x-csrf-token': token },
         credentials: 'include'
       });
       if (res.status === 401) { window.location.href = '/login.html'; return; }
@@ -191,9 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const isEdit = !!editId;
       const url = isEdit ? `/api/batches/${editId}` : '/api/batches';
       const method = isEdit ? 'PUT' : 'POST';
+      const token = await getCsrfToken();
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
         body: JSON.stringify(payload),
         credentials: 'include'
       });
@@ -202,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!data.success) {
         if (data.errors) {
           data.errors.forEach((err) => {
-            const key = err.param || 'batch_name';
+            const key = err.path || err.param || 'batch_name';
             if (errEls[key]) errEls[key].textContent = err.msg;
           });
         }
@@ -229,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(window._batchSearchTimer);
     window._batchSearchTimer = setTimeout(loadBatches, 300);
   });
+
+  if (statusFilter) statusFilter.addEventListener('change', () => renderTable(batches));
 
   if (dbDisabled && dbStatusBanner) {
     dbStatusBanner.style.display = 'block';

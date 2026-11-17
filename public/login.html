@@ -3,31 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clerk Login - Smart Result Analysis</title>
+  <title>Login - Smart Result Analysis</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/auth.css" />
 </head>
 <body class="login-body">
-  <div class="login-card">
-    <div class="login-brand">
-      <img src="/images/logo.svg" alt="Logo" class="logo" />
-      <h1>Smart Result Analysis</h1>
-      <p class="muted">Clerk Login Portal</p>
-    </div>
-    <form id="loginForm" class="login-form" novalidate>
-      <label for="username">Username or Email</label>
-      <input type="text" id="username" name="username" placeholder="Enter username or email" autocomplete="username" />
+  <!-- Ambient Glow Background Orbs -->
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-3" aria-hidden="true"></div>
 
-      <label for="password">Password</label>
-      <div class="password-field">
-        <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" />
-        <button type="button" id="togglePassword" class="toggle-password" aria-label="Show password">Show</button>
+  <div class="login-container">
+    <div class="login-card" id="loginCard">
+      <!-- Brand Header -->
+      <div class="login-brand">
+        <div class="logo-wrapper">
+          <img src="/images/logo.svg?v=20261118" alt="Smart Student Result Analysis mark" class="logo" />
+        </div>
+        <h1>Smart Result Analysis</h1>
+        <p class="subtitle" id="portalSubtitle">Academic Management Portal</p>
       </div>
 
-      <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
-      <div id="loginError" class="login-error" role="alert"></div>
-    </form>
+      <!-- Interactive Role Tabs -->
+      <div class="role-tabs" role="tablist" aria-label="Select portal role">
+        <button type="button" class="role-tab active" id="tabAdmin" role="tab" aria-selected="true" data-role="Admin" data-user="ravi" data-pass="Ravi@123">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Administrator
+        </button>
+        <button type="button" class="role-tab" id="tabStaff" role="tab" aria-selected="false" data-role="Staff" data-user="staff" data-pass="Staff@123">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Faculty / Staff
+        </button>
+      </div>
+
+      <!-- Quick Demo Credentials Bar -->
+      <div class="demo-pill-bar">
+        <span>Quick Demo Login:</span>
+        <div class="demo-pills">
+          <button type="button" class="demo-pill-btn" id="btnFillAdmin" title="Fill Admin credentials (Alt+A)">Admin</button>
+          <button type="button" class="demo-pill-btn" id="btnFillStaff" title="Fill Staff credentials (Alt+S)">Staff</button>
+        </div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="login-form" novalidate autocomplete="on">
+        <div class="form-group">
+          <label for="username">Username or Email</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="username" name="username" placeholder="Enter username or email" autocomplete="username" required spellcheck="false" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper password-field">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" id="togglePassword" class="toggle-password" aria-label="Show password">Show</button>
+          </div>
+          <div id="capsWarning" class="caps-warning" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Caps Lock is ON</span>
+          </div>
+        </div>
+
+        <div class="remember-row">
+          <label class="remember-label">
+            <input type="checkbox" id="rememberMe" />
+            <span>Remember username</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-login" id="loginBtn">
+          <span class="btn-text">Sign In</span>
+        </button>
+
+        <div id="loginError" class="login-error" role="alert"></div>
+      </form>
+
+      <div class="login-footer">
+        <p>&copy; 2026 Smart Result Analysis and Academic Performance Prediction System</p>
+      </div>
+    </div>
   </div>
+
   <script src="/js/auth.js"></script>
 </body>
 </html>

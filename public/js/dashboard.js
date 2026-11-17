@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       text: bodyStyle.color || '#1f2937',
       grid: bodyStyle.getPropertyValue('--border').trim() || 'rgba(128,128,128,.2)',
-      palette: ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#64748b']
+      palette: ['#0f766e', '#38a89d', '#d6a84f', '#52736e', '#5d9ca7', '#9a7bb5', '#b96755', '#84938f']
     };
   }
 
@@ -136,8 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         datasets: [{
           label: config.label,
           data: config.values,
-          backgroundColor: config.type === 'line' ? 'rgba(37,99,235,.2)' : config.type === 'doughnut' ? ['#16a34a', '#dc2626'] : theme.palette,
-          borderColor: config.type === 'line' ? '#2563eb' : theme.palette,
+          backgroundColor: config.type === 'line' ? 'rgba(15,118,110,.18)' : config.type === 'doughnut' ? ['#2d9b73', '#d76b5d'] : theme.palette,
+          borderColor: config.type === 'line' ? '#0f766e' : theme.palette,
           borderWidth: config.type === 'line' ? 2 : 1,
           tension: 0.25,
           fill: config.type === 'line'

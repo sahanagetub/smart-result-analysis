@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteSemester(id) {
     if (!confirm('Are you sure you want to delete this semester?')) return;
     try {
-      const res = await fetch(`/api/semesters/${id}`, {
+      const res = await apiFetch(`/api/semesters/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = isEdit ? `/api/semesters/${editId}` : '/api/semesters';
         const method = isEdit ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

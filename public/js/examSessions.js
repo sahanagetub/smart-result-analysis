@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteExamSession(id) {
     if (!confirm('Are you sure you want to delete this exam session?')) return;
     try {
-      const res = await fetch(`/api/exam-sessions/${id}`, {
+      const res = await apiFetch(`/api/exam-sessions/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = isEdit ? `/api/exam-sessions/${editId}` : '/api/exam-sessions';
         const method = isEdit ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

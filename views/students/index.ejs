@@ -11,8 +11,13 @@
     <p id="batchAcademicYear">--</p>
   </div>
   <div class="card-body">
-    <div class="toolbar">
-      <div class="search-box"><input type="text" id="studentSearch" placeholder="Search students by USN or Name..." /></div>
+    <div class="toolbar student-toolbar">
+      <div class="student-filters">
+        <label class="filter-control" for="studentBatchFilter">Batch
+          <select id="studentBatchFilter" aria-label="Filter students by batch"><option value="">All batches</option></select>
+        </label>
+        <div class="search-box"><input type="search" id="studentSearch" placeholder="Search USN, name, or email..." aria-label="Search students" /></div>
+      </div>
       <div class="btn-group">
         <button id="addStudentBtn" class="btn btn-primary">+ Add Student</button>
         <button id="importStudentsBtn" class="btn btn-secondary">Import Students</button>
@@ -28,10 +33,18 @@
       </div>
       <form id="importStudentForm" enctype="multipart/form-data" novalidate>
         <input type="hidden" id="importBatchId" name="batch_id" value="<%= batchId %>" />
+        <div class="form-group">
+          <label for="importBatchSelect">Batch <span class="required">*</span></label>
+          <select id="importBatchSelect" required>
+            <option value="">Select a batch first...</option>
+          </select>
+          <small class="muted">Choose the batch before selecting a file.</small>
+        </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="importFile">Select File </label>
-            <input type="file" id="importFile" name="importFile" accept=".csv,.xlsx" required />
+            <label for="importFile">Student file <span class="required">*</span></label>
+            <input type="file" id="importFile" name="importFile" accept=".csv,.xlsx,.xls" required disabled />
+            <small class="muted">Required columns: USN, Student Name, Email. Sr and Category are ignored.</small>
           </div>
         </div>
         <div id="importPreview" style="margin-top:12px; display:none;"></div>
@@ -49,6 +62,7 @@
             <tr>
               <th>USN</th>
               <th>Student Name</th>
+              <th>Batch</th>
               <th>Email</th>
               <th>Status</th>
               <th>Created</th>
@@ -71,7 +85,13 @@
   </div>
   <form id="studentForm" class="student-form" novalidate>
     <input type="hidden" id="studentId" />
-    <input type="hidden" id="batchId" />
+    <div class="form-group">
+      <label for="studentBatch">Batch <span class="required">*</span></label>
+      <select id="studentBatch" name="batch_id" required>
+        <option value="">Loading batches...</option>
+      </select>
+      <span class="field-error" id="errBatch"></span>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label for="usn">USN <span class="required">*</span></label>

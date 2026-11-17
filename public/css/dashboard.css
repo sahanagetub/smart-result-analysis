@@ -14,8 +14,18 @@
 }
 .dashboard-filter-actions { display: flex; gap: 8px; }
 .dashboard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.dashboard-stat { display: grid; gap: 6px; padding: 16px; min-width: 0; }
-.dashboard-stat span { color: var(--muted); font-size: .86rem; }
+.dashboard-stat { display: grid; gap: 9px; padding: 16px; min-width: 0; transition: transform .18s ease, box-shadow .18s ease; }
+.dashboard-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22,55,51,.09); }
+.dashboard-stat-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.dashboard-stat-label { color: var(--muted); font-size: .86rem; font-weight:600; }
+.dashboard-stat-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:11px; }
+.dashboard-stat-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.tone-teal { color:#0f766e; background:#e1f3ef; }
+.tone-gold { color:#a87820; background:#fbf1dc; }
+.tone-blue { color:#477c91; background:#e6f1f4; }
+.tone-violet { color:#8162a1; background:#f0eafa; }
+.tone-green { color:#25845f; background:#e3f3e9; }
+.tone-coral { color:#b85f50; background:#faeae6; }
 .dashboard-stat strong { color: var(--text); font-size: clamp(1.25rem, 2vw, 1.8rem); line-height: 1.15; overflow-wrap: anywhere; }
 .dashboard-panel { padding: 20px; min-width: 0; }
 .dashboard-panel h2, .dashboard-chart h2 { color: var(--text); font-size: 1.05rem; margin-bottom: 12px; }

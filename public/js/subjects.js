@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const subjectForm = document.getElementById('subjectForm');
   const subjectsTableBody = document.getElementById('subjectsTableBody');
   const subjectSearch = document.getElementById('subjectSearch');
+  const subjectSemesterFilter = document.getElementById('subjectSemesterFilter');
 
   const subjectId = document.getElementById('subjectId');
   const subjectCode = document.getElementById('subjectCode');
@@ -51,6 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!data.success) throw new Error(data.message || 'Failed to load semesters.');
 
       semesters = data.data || [];
+      if (subjectSemesterFilter) {
+        subjectSemesterFilter.innerHTML = '<option value="">All semesters</option>';
+        semesters.forEach((semester) => {
+          const option = document.createElement('option');
+          option.value = semester.id;
+          option.textContent = `${semester.semester_name} · ${semester.batch_name || 'Batch'}`;
+          subjectSemesterFilter.appendChild(option);
+        });
+      }
       if (subjectSemester) {
         subjectSemester.innerHTML = '<option value="">Select a semester...</option>';
         semesters.forEach((s) => {
@@ -67,12 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function loadSubjects(search = '') {
+  async function loadSubjects(search = '', semesterId = subjectSemesterFilter ? subjectSemesterFilter.value : '') {
     if (!subjectsTableBody) return;
     subjectsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading subjects...</td></tr>';
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
+      if (semesterId) params.set('semesterId', semesterId);
 
       const res = await fetch(`/api/subjects?${params.toString()}`, { credentials: 'include' });
       if (res.status === 401) { window.location.href = '/login'; return; }
@@ -165,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteSubject(id) {
     if (!confirm('Are you sure you want to delete this subject?')) return;
     try {
-      const res = await fetch(`/api/subjects/${id}`, {
+      const res = await apiFetch(`/api/subjects/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -173,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed to delete subject.');
       showMessage(data.message || 'Subject deleted.', 'success');
-      loadSubjects(subjectSearch ? subjectSearch.value.trim() : '');
+      loadSubjects(subjectSearch ? subjectSearch.value.trim() : '', subjectSemesterFilter ? subjectSemesterFilter.value : '');
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -186,8 +197,14 @@ document.addEventListener('DOMContentLoaded', () => {
     subjectSearch.addEventListener('input', () => {
       clearTimeout(window._subjectSearchTimer);
       window._subjectSearchTimer = setTimeout(() => {
-        loadSubjects(subjectSearch.value.trim());
+        loadSubjects(subjectSearch.value.trim(), subjectSemesterFilter ? subjectSemesterFilter.value : '');
       }, 300);
+    });
+  }
+
+  if (subjectSemesterFilter) {
+    subjectSemesterFilter.addEventListener('change', () => {
+      loadSubjects(subjectSearch ? subjectSearch.value.trim() : '', subjectSemesterFilter.value);
     });
   }
 
@@ -236,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = isEdit ? `/api/subjects/${editId}` : '/api/subjects';
         const method = isEdit ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -253,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showMessage(data.message || (isEdit ? 'Subject updated.' : 'Subject created.'), 'success');
         hideForm();
-        loadSubjects(subjectSearch ? subjectSearch.value.trim() : '');
+        loadSubjects(subjectSearch ? subjectSearch.value.trim() : '', subjectSemesterFilter ? subjectSemesterFilter.value : '');
       } catch (err) {
         showMessage(err.message, 'error');
       } finally {

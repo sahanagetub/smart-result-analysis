@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const charts = new Map();
   let options = { batches: [], semesters: [], sessions: [], subjects: [], academicYears: [] };
-  const chartColors = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
+  const chartColors = ['#0f766e', '#38a89d', '#d6a84f', '#52736e', '#5d9ca7', '#9a7bb5', '#b96755'];
 
   async function fetchJson(url) {
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
@@ -129,7 +129,7 @@
     $('averageMarks').textContent = Number(overview.averageMarks || 0).toFixed(2);
     $('averagePercentage').textContent = `${Number(overview.averagePercentage || 0).toFixed(2)}%`;
 
-    renderChart('passFailChart', 'doughnut', ['Passed result records', 'Failed result records'], [{ label: 'Results', data: [overview.passedResults, overview.failedResults], backgroundColor: ['#16a34a', '#dc2626'] }]);
+    renderChart('passFailChart', 'doughnut', ['Passed result records', 'Failed result records'], [{ label: 'Results', data: [overview.passedResults, overview.failedResults], backgroundColor: ['#2d9b73', '#d76b5d'] }]);
     const grades = overview.gradeSummary || [];
     renderChart('gradeChart', 'bar', grades.map((x) => x.grade), [{ label: 'Stored result records', data: grades.map((x) => x.count) }]);
     const semesterGrades = groupedGradeSets(data.grades.bySemester || []);

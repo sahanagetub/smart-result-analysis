@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#1e3a8a"/>
-  <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial" fill="#ffffff" font-weight="bold">S</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Smart Student Result Analysis</title>
+  <defs>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#159487"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="17" fill="#142b2a"/>
+  <path d="M14 17.5c7.1-2 13.1-.7 18 3.1v29c-4.9-3.8-10.9-5.1-18-3.1z" fill="#fff" fill-opacity=".96"/>
+  <path d="M50 17.5c-7.1-2-13.1-.7-18 3.1v29c4.9-3.8 10.9-5.1 18-3.1z" fill="#dff3ef"/>
+  <path d="M32 21v28.6M19 25c3.1-.2 5.7.3 8 1.7M19 31c3.1-.2 5.7.3 8 1.7M45 25c-3.1-.2-5.7.3-8 1.7M45 31c-3.1-.2-5.7.3-8 1.7" fill="none" stroke="url(#mark)" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="m39 41 3 3 6-7" fill="none" stroke="#d6a84f" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

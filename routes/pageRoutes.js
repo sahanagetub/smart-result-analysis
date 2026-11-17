@@ -61,7 +61,7 @@ router.get('/results', requireAuth, (req, res) => {
 });
 
 router.get('/results/upload', requireAuth, (req, res) => {
-  res.render('results/upload', { title: 'Upload Result', active: 'results' });
+  res.render('results/upload', { title: 'Upload Result', active: 'resultUpload' });
 });
 
 // Test data generator (admin only)

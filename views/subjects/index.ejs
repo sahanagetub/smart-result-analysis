@@ -5,9 +5,14 @@
 </div>
 <div id="pageMessage" class="status-banner status-info" style="display:none;"></div>
 
-<div class="toolbar" style="margin-bottom:20px;">
+<div class="toolbar setup-filter-toolbar" style="margin-bottom:20px;">
   <button id="addSubjectBtn" class="btn btn-primary">+ Add Subject</button>
-  <div class="search-box"><input type="text" id="subjectSearch" placeholder="Search subjects by name or code..." /></div>
+  <div class="setup-filters">
+    <label class="filter-control" for="subjectSemesterFilter">Semester
+      <select id="subjectSemesterFilter" aria-label="Filter subjects by semester"><option value="">All semesters</option></select>
+    </label>
+    <div class="search-box"><input type="search" id="subjectSearch" placeholder="Search subject name or code..." aria-label="Search subjects" /></div>
+  </div>
 </div>
 
 <div class="card table-card">

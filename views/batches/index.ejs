@@ -60,10 +60,17 @@
   </form>
 </div>
 
-<div class="toolbar">
+<div class="toolbar setup-filter-toolbar">
   <button id="addBatchBtn" class="btn btn-primary">Add New Batch</button>
-  <div class="search-box">
-    <input type="text" id="searchBatches" placeholder="Search batches by name..." />
+  <div class="setup-filters">
+    <label class="filter-control" for="batchStatusFilter">Status
+      <select id="batchStatusFilter" aria-label="Filter batches by status">
+        <option value="">All statuses</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </label>
+    <div class="search-box"><input type="search" id="searchBatches" placeholder="Search batch name..." aria-label="Search batches" /></div>
   </div>
 </div>
 <div class="card table-card">

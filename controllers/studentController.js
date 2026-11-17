@@ -134,17 +134,13 @@ async function importStudents(req, res, next) {
     const fileBuffer = req.file.buffer;
     const fileName = (req.file.originalname || '').toLowerCase();
 
-    let rows = [];
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
-    } else if (fileName.endsWith('.csv')) {
-      const csvContent = fileBuffer.toString('utf8');
-      rows = parseCSV(csvContent);
-    } else {
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls') && !fileName.endsWith('.csv')) {
       return res.status(400).json({ success: false, message: 'Unsupported file type. Use .csv or .xlsx.' });
     }
+
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer', raw: false });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = firstSheet ? XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: false }) : [];
 
     if (!rows || rows.length === 0) {
       return res.status(400).json({ success: false, message: 'No data rows found in file.' });
@@ -154,11 +150,19 @@ async function importStudents(req, res, next) {
     const normalized = rows.map((r) => {
       const out = {};
       Object.keys(r).forEach((k) => {
-        const key = String(k).trim().toLowerCase();
+        const key = String(k).replace(/^\uFEFF/, '').trim().toLowerCase();
         out[key] = r[k] == null ? '' : String(r[k]).trim();
       });
       return out;
     });
+
+    const headers = new Set(Object.keys(normalized[0] || {}));
+    if (!headers.has('usn') || !(headers.has('student name') || headers.has('name')) || !headers.has('email')) {
+      return res.status(400).json({
+        success: false,
+        message: 'The file must include USN, Student Name, and Email columns.'
+      });
+    }
 
     // Validate each row
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -177,7 +181,7 @@ async function importStudents(req, res, next) {
       const rowNum = index + 2; // header is row 1
       const errors = [];
       const usn = row.usn || row['usn'] || '';
-      const name = row.name || row['name'] || '';
+      const name = row['student name'] || row.name || '';
       const email = row.email || row['email'] || '';
 
       if (!usn) errors.push('Missing USN');
@@ -265,22 +269,6 @@ async function confirmImportStudents(req, res, next) {
     console.error('Confirm import error:', err);
     return res.status(500).json({ success: false, message: 'Failed to confirm import.' });
   }
-}
-
-function parseCSV(csv) {
-  const lines = csv.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map((v) => v.trim().replace(/"/g, ''));
-    const row = {};
-    headers.forEach((h, idx) => {
-      row[h] = values[idx] || '';
-    });
-    rows.push(row);
-  }
-  return rows;
 }
 
 module.exports = {

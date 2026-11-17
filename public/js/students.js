@@ -18,23 +18,82 @@ document.addEventListener('DOMContentLoaded', () => {
   const errUsn = document.getElementById('errUsn');
   const errName = document.getElementById('errName');
   const errEmail = document.getElementById('errEmail');
+  const errBatch = document.getElementById('errBatch');
+  const studentBatchSelect = document.getElementById('studentBatch');
+  const studentBatchFilter = document.getElementById('studentBatchFilter');
   const importStudentsForm = document.getElementById('importStudentsForm');
   const importStudentForm = document.getElementById('importStudentForm');
   const importFile = document.getElementById('importFile');
   const importBatchId = document.getElementById('importBatchId');
+  const importBatchSelect = document.getElementById('importBatchSelect');
   const importPreview = document.getElementById('importPreview');
   const importStatus = document.getElementById('importStatus');
   const confirmImportBtn = document.getElementById('confirmImportBtn');
   const studentsTableBody = document.getElementById('studentsTableBody');
-  const batchIdInput = document.getElementById('batchId');
   const studentSearch = document.getElementById('studentSearch');
 
   let students = [];
   const urlParams = new URLSearchParams(window.location.search);
   let currentBatchId = (importBatchId && importBatchId.value) || urlParams.get('batchId') || '';
-  if (batchIdInput) batchIdInput.value = currentBatchId;
   let editId = null;
   let importValidRows = [];
+
+  async function loadStudentBatchOptions() {
+    if (!studentBatchSelect) return;
+    try {
+      const response = await fetch('/api/batches', { credentials: 'include' });
+      if (!response.ok) throw new Error('Could not load batches.');
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message || 'Could not load batches.');
+      const batches = data.data || [];
+      const createBatchOption = (batch) => {
+        const option = document.createElement('option');
+        option.value = batch.id;
+        option.textContent = `${batch.batch_name} (${batch.start_year}–${batch.end_year})${batch.status === 'Inactive' ? ' · Inactive' : ''}`;
+        return option;
+      };
+      studentBatchSelect.innerHTML = '<option value="">Select a batch...</option>';
+      batches.forEach((batch) => studentBatchSelect.appendChild(createBatchOption(batch)));
+      if (studentBatchFilter) {
+        studentBatchFilter.innerHTML = '<option value="">All batches</option>';
+        batches.forEach((batch) => studentBatchFilter.appendChild(createBatchOption(batch)));
+        studentBatchFilter.value = currentBatchId;
+      }
+      if (importBatchSelect) {
+        importBatchSelect.innerHTML = '<option value="">Select a batch first...</option>';
+        batches.forEach((batch) => importBatchSelect.appendChild(createBatchOption(batch)));
+        importBatchSelect.disabled = batches.length === 0;
+      }
+      if (currentBatchId) studentBatchSelect.value = String(currentBatchId);
+      studentBatchSelect.disabled = batches.length === 0;
+      if (batches.length === 0) {
+        studentBatchSelect.innerHTML = '<option value="">Create a batch first</option>';
+        if (importBatchSelect) importBatchSelect.innerHTML = '<option value="">Create a batch first</option>';
+        if (importFile) importFile.disabled = true;
+      }
+    } catch (error) {
+      studentBatchSelect.innerHTML = '<option value="">Unable to load batches</option>';
+      studentBatchSelect.disabled = true;
+      if (importBatchSelect) {
+        importBatchSelect.innerHTML = '<option value="">Unable to load batches</option>';
+        importBatchSelect.disabled = true;
+      }
+      if (importFile) importFile.disabled = true;
+      showMessage(error.message, 'error');
+    }
+  }
+  const batchOptionsReady = loadStudentBatchOptions();
+
+  function setCurrentBatch(batchId) {
+    currentBatchId = String(batchId || '');
+    if (importBatchId) importBatchId.value = currentBatchId;
+    if (studentBatchFilter) studentBatchFilter.value = currentBatchId;
+    const nextUrl = new URL(window.location.href);
+    if (currentBatchId) nextUrl.searchParams.set('batchId', currentBatchId);
+    else nextUrl.searchParams.delete('batchId');
+    window.history.replaceState({}, '', nextUrl);
+    loadBatchInfo();
+  }
 
   function showMessage(text, type = 'info') {
     if (!pageMessage) return;
@@ -47,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (errUsn) errUsn.textContent = '';
     if (errName) errName.textContent = '';
     if (errEmail) errEmail.textContent = '';
+    if (errBatch) errBatch.textContent = '';
   }
 
   async function loadBatchInfo() {
@@ -73,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadStudents(batchId = currentBatchId, search = '') {
     if (!studentsTableBody) return;
-    studentsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading students...</td></tr>';
+    studentsTableBody.innerHTML = '<tr><td colspan="7" class="empty-row">Loading students...</td></tr>';
     try {
       const params = new URLSearchParams();
       if (batchId) params.set('batchId', batchId);
@@ -88,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       students = data.data || [];
       renderStudents(students);
     } catch (err) {
-      studentsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Error loading students.</td></tr>';
+      studentsTableBody.innerHTML = '<tr><td colspan="7" class="empty-row">Error loading students.</td></tr>';
       showMessage(err.message, 'error');
     }
   }
@@ -96,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderStudents(studentList) {
     if (!studentsTableBody) return;
     if (!studentList || studentList.length === 0) {
-      studentsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">No students found.</td></tr>';
+      studentsTableBody.innerHTML = '<tr><td colspan="7" class="empty-row">No students found.</td></tr>';
       return;
     }
     studentsTableBody.innerHTML = '';
@@ -106,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.innerHTML = `
         <td><strong>${escapeHtml(student.usn)}</strong></td>
         <td>${escapeHtml(student.name)}</td>
+        <td>${escapeHtml(student.batch_name || '—')}</td>
         <td>${escapeHtml(student.email)}</td>
         <td><span class="status-badge active">Active</span></td>
         <td>${created}</td>
@@ -133,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function deleteStudent(id) {
     try {
-      const res = await fetch('/api/students/' + id, {
+      const res = await apiFetch('/api/students/' + id, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -148,7 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function openEditStudentForm(id) {
+  async function openEditStudentForm(id) {
+    await batchOptionsReady;
     const student = students.find((s) => s.id == id);
     if (!student) {
       showMessage('Student not found.', 'error');
@@ -157,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     usnInput.value = student.usn || '';
     nameInput.value = student.name || '';
     emailInput.value = student.email || '';
+    if (studentBatchSelect) studentBatchSelect.value = String(student.batch_id || '');
     editId = student.id;
     if (formTitle) formTitle.textContent = 'Edit Student';
     if (saveStudentBtn) saveStudentBtn.textContent = 'Update Student';
@@ -174,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showAddStudentForm() {
     if (importStudentsForm) importStudentsForm.style.display = 'none';
+    if (studentBatchSelect && !editId) studentBatchSelect.value = currentBatchId || '';
     if (addStudentForm) addStudentForm.style.display = 'block';
     addStudentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -186,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         usn: usnInput.value.trim(),
         name: nameInput.value.trim(),
         email: emailInput.value.trim(),
-        batch_id: parseInt(currentBatchId || (batchIdInput ? batchIdInput.value : 0), 10)
+        batch_id: parseInt(studentBatchSelect ? studentBatchSelect.value : '', 10)
       };
       let valid = true;
       if (!payload.usn) { errUsn.textContent = 'USN is required.'; valid = false; }
@@ -199,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         valid = false;
       }
       if (!payload.batch_id) {
-        showMessage('A valid batch is required to add students. Please open from a specific batch.', 'error');
+        if (errBatch) errBatch.textContent = 'Select a batch for this student.';
         valid = false;
       }
       if (!valid) return;
@@ -210,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isEdit = !!editId;
         const url = isEdit ? '/api/students/' + editId : '/api/students';
         const method = isEdit ? 'PUT' : 'POST';
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -220,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Operation failed.');
         showMessage(data.message || (isEdit ? 'Student updated.' : 'Student added.'), 'success');
+        setCurrentBatch(payload.batch_id);
         hideAddStudentForm();
         loadStudents(currentBatchId, studentSearch ? studentSearch.value.trim() : '');
       } catch (err) {
@@ -235,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (addStudentBtn) addStudentBtn.addEventListener('click', () => {
     editId = null;
     if (studentForm) studentForm.reset();
+    if (studentBatchSelect) studentBatchSelect.value = currentBatchId || '';
     clearErrors();
     showAddStudentForm();
   });
@@ -243,9 +309,30 @@ document.addEventListener('DOMContentLoaded', () => {
     importStudentsBtn.addEventListener('click', () => {
       hideAddStudentForm();
       if (importStudentsForm) {
+        if (importBatchSelect) importBatchSelect.value = '';
+        if (importBatchId) importBatchId.value = '';
+        if (importFile) { importFile.value = ''; importFile.disabled = true; }
+        if (importPreview) { importPreview.innerHTML = ''; importPreview.style.display = 'none'; }
+        if (importStatus) { importStatus.textContent = ''; importStatus.style.display = 'none'; }
+        if (confirmImportBtn) confirmImportBtn.style.display = 'none';
+        importValidRows = [];
         importStudentsForm.style.display = 'block';
         importStudentsForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+    });
+  }
+
+  if (importBatchSelect) {
+    importBatchSelect.addEventListener('change', () => {
+      if (importBatchId) importBatchId.value = importBatchSelect.value;
+      if (importFile) {
+        importFile.disabled = !importBatchSelect.value;
+        importFile.value = '';
+      }
+      if (importPreview) { importPreview.innerHTML = ''; importPreview.style.display = 'none'; }
+      if (importStatus) { importStatus.textContent = ''; importStatus.style.display = 'none'; }
+      if (confirmImportBtn) confirmImportBtn.style.display = 'none';
+      importValidRows = [];
     });
   }
 
@@ -263,23 +350,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (importFile) {
     importFile.addEventListener('change', async () => {
       if (!importFile.files.length) return;
-      if (!currentBatchId) {
+      if (!importBatchSelect || !importBatchSelect.value) {
         if (importStatus) {
-          importStatus.textContent = 'No batch context. Please open this page with a specific batch.';
+          importStatus.textContent = 'Select a batch before choosing the student file.';
           importStatus.style.display = 'block';
         }
         return;
       }
       const formData = new FormData();
       formData.append('importFile', importFile.files[0]);
-      formData.append('batch_id', currentBatchId);
+      formData.append('batch_id', importBatchSelect.value);
       if (importStatus) importStatus.style.display = 'none';
       if (importPreview) importPreview.style.display = 'none';
       if (confirmImportBtn) confirmImportBtn.style.display = 'none';
       importValidRows = [];
 
       try {
-        const res = await fetch('/api/students/import', {
+        const res = await apiFetch('/api/students/import', {
           method: 'POST',
           body: formData,
           credentials: 'include'
@@ -289,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!data.success) throw new Error(data.message || 'Import failed.');
         importValidRows = data.data.validRows || [];
         const invalidRows = data.data.invalidRows || [];
-        let html = '<h4>Import Preview</h4>';
+        const selectedBatchName = importBatchSelect.options[importBatchSelect.selectedIndex]?.textContent || 'Selected batch';
+        let html = `<h4>Import Preview · ${escapeHtml(selectedBatchName)}</h4>`;
         html += `<p><strong>Total:</strong> ${data.data.total} | <strong>Valid:</strong> ${data.data.valid} | <strong>Invalid:</strong> ${data.data.invalid}</p>`;
         if (importValidRows.length > 0) {
           html += '<table class="table"><thead><tr><th>USN</th><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody>';
@@ -326,16 +414,18 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmImportBtn.addEventListener('click', async () => {
       if (!importValidRows.length) return;
       try {
-        const res = await fetch('/api/students/import/confirm', {
+        const res = await apiFetch('/api/students/import/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ students: importValidRows, batch_id: currentBatchId }),
+          body: JSON.stringify({ students: importValidRows, batch_id: importBatchSelect ? importBatchSelect.value : '' }),
           credentials: 'include'
         });
         if (res.status === 401) { window.location.href = '/login'; return; }
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Confirm import failed.');
-        showMessage(data.message || 'Students imported successfully.', 'success');
+        const importErrors = data.data && Array.isArray(data.data.errors) ? data.data.errors : [];
+        showMessage(importErrors.length ? `${data.message} ${importErrors.length} row(s) could not be imported.` : (data.message || 'Students imported successfully.'), importErrors.length ? 'warn' : 'success');
+        setCurrentBatch(importBatchSelect ? importBatchSelect.value : currentBatchId);
         if (importFile) importFile.value = '';
         if (importPreview) importPreview.style.display = 'none';
         if (confirmImportBtn) confirmImportBtn.style.display = 'none';
@@ -355,6 +445,13 @@ document.addEventListener('DOMContentLoaded', () => {
       window._studentSearchTimer = setTimeout(() => {
         loadStudents(currentBatchId, studentSearch.value.trim());
       }, 300);
+    });
+  }
+
+  if (studentBatchFilter) {
+    studentBatchFilter.addEventListener('change', () => {
+      setCurrentBatch(studentBatchFilter.value);
+      loadStudents(currentBatchId, studentSearch ? studentSearch.value.trim() : '');
     });
   }
 
