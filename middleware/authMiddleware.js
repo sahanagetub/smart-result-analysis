@@ -7,7 +7,7 @@ function requireAuth(req, res, next) {
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(401).json({ success: false, message: 'Authentication required.' });
   }
-  return res.redirect('/login.html');
+  return res.redirect('/login');
 }
 
 function requireRole(allowedRoles) {
@@ -32,4 +32,36 @@ function requireRole(allowedRoles) {
 const requireAdmin = requireRole(['Admin']);
 const requireStaff = requireRole(['Admin', 'Staff']);
 
-module.exports = { requireAuth, requireRole, requireAdmin, requireStaff };
+const protectedStaticPages = new Set([
+  '/dashboard.html', '/batches.html', '/students.html', '/semesters.html',
+  '/sessions.html', '/subjects.html', '/results.html', '/analytics.html', '/reports.html', '/users.html'
+]);
+
+function protectStaticPage(req, res, next) {
+  if (!protectedStaticPages.has(req.path)) return next();
+  return requireAuth(req, res, () => {
+    if (req.path === '/users.html') return requireAdmin(req, res, next);
+    return next();
+  });
+}
+
+// CSRF protection middleware
+function csrfMiddleware(req, res, next) {
+  // Skip CSRF check for GET requests, login, logout, me, and health checks
+  if (req.method === 'GET' || req.originalUrl.startsWith('/api/auth/login') ||
+      req.originalUrl.startsWith('/api/auth/me') ||
+      req.originalUrl.startsWith('/api/health')) {
+    return next();
+  }
+
+  // A request token cannot establish its own session binding.
+  const csrfToken = req.body?._csrf || req.query?._csrf || req.headers?.['x-csrf-token'];
+  const sessionToken = req.session && req.session._csrf;
+  if (!csrfToken || !sessionToken || csrfToken !== sessionToken) {
+    return res.status(400).json({ success: false, message: 'Invalid CSRF token.' });
+  }
+
+  next();
+}
+
+module.exports = { requireAuth, requireRole, requireAdmin, requireStaff, csrfMiddleware, protectStaticPage };

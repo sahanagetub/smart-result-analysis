@@ -51,13 +51,22 @@ async function getStudentsByBatch(batchId, search = '') {
   }
   const pool = getPool();
   if (!pool) return [];
-  let sql = `SELECT id, usn, name, email, batch_id, created_at, updated_at FROM students WHERE batch_id = ?`;
-  const params = [batchId];
+  let sql = `SELECT s.id, s.usn, s.name, s.email, s.batch_id, s.created_at, s.updated_at, b.batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id`;
+  const params = [];
+  const conditions = [];
+
+  if (batchId) {
+    conditions.push('s.batch_id = ?');
+    params.push(batchId);
+  }
   if (search) {
-    sql += ` AND (usn LIKE ? OR name LIKE ? OR email LIKE ?)`;
+    conditions.push('(s.usn LIKE ? OR s.name LIKE ? OR s.email LIKE ?)');
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
-  sql += ` ORDER BY created_at DESC`;
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ` ORDER BY s.created_at DESC`;
   const [rows] = await pool.execute(sql, params);
   return rows;
 }
@@ -176,7 +185,7 @@ async function updateStudent(id, data) {
   }
   params.push(id);
 
-  const [result] = await pool.execute(sql + ' WHERE id = ?', params);
+  const [result] = await pool.execute(sql + updates.join(', ') + ' WHERE id = ?', params);
 
   if (result.affectedRows === 0) {
     return null;
@@ -193,12 +202,17 @@ async function deleteStudent(id) {
   if (!pool) throw new Error('Database pool unavailable.');
 
   const [result] = await pool.execute('DELETE FROM students WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
 
-  if (result.affectedRows === 0) {
-    return null;
+async function countResultsForStudent(usn) {
+  if (isDbDisabled()) {
+    return 0;
   }
-
-  return getStudentById(id);
+  const pool = getPool();
+  if (!pool) return 0;
+  const [rows] = await pool.execute('SELECT COUNT(*) AS cnt FROM results WHERE usn = ?', [usn]);
+  return Number(rows[0]?.cnt || 0);
 }
 
 module.exports = {
@@ -211,6 +225,7 @@ module.exports = {
   getStudentCountsByBatch,
   updateStudent,
   deleteStudent,
+  countResultsForStudent,
   getAllUsns,
   getAllEmails
 };

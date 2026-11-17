@@ -10,14 +10,7 @@ router.use('/api/semesters', require('./semesterRoutes'));
 router.use('/api/exam-sessions', require('./examSessionRoutes'));
 router.use('/api/subjects', require('./subjectRoutes'));
 router.use('/api/results', require('./resultRoutes'));
+router.use('/api/generator', require('./generatorRoutes'));
 router.use('/', require('./healthRoutes'));
-
-// Root redirect to EJS page router (handles /login, /dashboard, etc.)
-router.get('/', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.redirect('/dashboard');
-  }
-  res.redirect('/login');
-});
 
 module.exports = router;

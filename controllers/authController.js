@@ -48,7 +48,7 @@ exports.login = async (req, res) => {
     if (pool) {
       try {
         const [rows] = await pool.execute(
-          'SELECT id, username, password_hash, display_name, role, status FROM users WHERE username = ? OR email = ? LIMIT 1',
+          'SELECT id, username, password_hash, full_name, email, role, status FROM users WHERE username = ? OR email = ? LIMIT 1',
           [username, username]
         );
         if (rows && rows.length) {
@@ -98,61 +98,4 @@ exports.me = (req, res) => {
     return res.json({ success: true, data: { username: req.session.userId, displayName: req.session.userId, role: 'clerk' } });
   }
   return res.status(401).json({ success: false, message: 'Not authenticated.' });
-};
-
-exports.createUser = async (req, res, next) => {
-  try {
-    const { username, password, full_name, email, role, status } = req.body;
-
-    if (!username || !password || !full_name || !email) {
-      return res.status(400).json({ success: false, message: 'All fields are required.' });
-    }
-    if (!['Admin', 'Staff'].includes(role || 'Staff')) {
-      return res.status(400).json({ success: false, message: 'Role must be Admin or Staff.' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
-    }
-
-    const requesterRole = (req.session && req.session.user && req.session.user.role) || 'Staff';
-    if (requesterRole !== 'Admin') {
-      return res.status(403).json({ success: false, message: 'Only administrators can create user accounts.' });
-    }
-
-    // Check uniqueness
-    const pool = getPool();
-    if (pool) {
-      try {
-        const [existing] = await pool.execute(
-          'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1',
-          [username, email]
-        );
-        if (existing && existing.length) {
-          return res.status(409).json({ success: false, message: 'Username or email already exists.' });
-        }
-        const password_hash = await bcrypt.hash(password, 10);
-        const [result] = await pool.execute(
-          `INSERT INTO users (username, password_hash, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?)`,
-          [username, password_hash, full_name, email, role || 'Staff', status || 'Active']
-        );
-        const user = {
-          id: result.insertId,
-          username,
-          full_name,
-          email,
-          role: role || 'Staff',
-          status: status || 'Active'
-        };
-        return res.status(201).json({ success: true, data: user, message: 'User created successfully.' });
-      } catch (e) {
-        console.error('Create user error:', e);
-        return res.status(500).json({ success: false, message: 'Failed to create user.' });
-      }
-    }
-
-    return res.status(500).json({ success: false, message: 'Database integration is disabled.' });
-  } catch (err) {
-    console.error('Create user error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to create user.' });
-  }
 };

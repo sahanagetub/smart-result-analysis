@@ -1,0 +1,93 @@
+const studentModel = require('../models/studentModel');
+const batchModel = require('../models/batchModel');
+const semesterModel = require('../models/semesterModel');
+const subjectModel = require('../models/subjectModel');
+const examSessionModel = require('../models/examSessionModel');
+const resultModel = require('../models/resultModel');
+const resultCalculationService = require('./resultCalculationService');
+const { getPool, isDbDisabled } = require('../config/db');
+
+const maleNames = [
+  'Ravi Kumar', 'Anil Sharma', 'Prakash Singh', 'Vikram Patel', 'Sanjay Roy',
+  'Amit Mishra', 'Rohit Jain', 'Sameer Singh', 'Gaurav Agarwal', 'Deepak Choudhary'
+];
+const femaleNames = [
+  'Priya Singh', 'Neha Sharma', 'Pooja Patel', 'Sneha Roy', 'Kriti Mishra',
+  'Payal Jain', 'Ritu Singh', 'Kavita Patel', 'Monika Sharma', 'Anita Sharma'
+];
+const allNames = [...maleNames, ...femaleNames];
+
+const generateUSN = (seq = 1) => `1RV24MCA${String(seq).padStart(2, '0')}`;
+
+const generateStudentData = async (existingUsns = new Set) => {
+  let usn;
+  let attempts = 0;
+  const maxAttempts = 50;
+  do {
+    usn = generateUSN(Math.floor(Math.random() * 100) + 1);
+    attempts++;
+  } while (existingUsns.has(usn) && attempts < maxAttempts);
+  
+  const fullName = allNames[Math.floor(Math.random() * allNames.length)];
+  const email = `${fullName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+  const batchId = Math.floor(Math.random() * 5) + 1;
+  
+  return { usn, name: fullName, email, batch_id: batchId };
+};
+
+const generateUniqueSubjectCode = async (existingCodes = new Set, semesterId = 1) => {
+  const subjectCodes = ['MCA101', 'MCA102', 'MCA103', 'MCA104', 'MCA105', 'MCA105', 'MCA106', 'MCA107', 'MCA108'];
+  let subjectCode;
+  let attempts = 0;
+  const maxAttempts = 20;
+  do {
+    subjectCode = subjectCodes[Math.floor(Math.random() * subjectCodes.length)];
+    attempts++;
+  } while (existingCodes.has(subjectCode) && attempts < maxAttempts);
+  return subjectCode;
+};
+
+const generateSubjectData = async (semesterId = 1, existingCodes = new Set) => {
+  const subjectCode = await generateUniqueSubjectCode(existingCodes, semesterId);
+  const existingCodesSet = new Set(existingCodes);
+  existingCodesSet.add(subjectCode);
+  const subjectNames = [
+    'Data Structures', 'Algorithms', 'Database Management', 'Software Engineering',
+    'Operating Systems', 'Computer Networks', 'Web Technology', 'Mobile Computing'
+  ];
+  const subjectName = subjectNames[Math.floor(Math.random() * subjectNames.length)];
+  const credits = [3, 4, 5][Math.floor(Math.random() * 3)];
+  return { semester_id: semesterId, subject_code: subjectCode, subject_name: subjectName, max_internal_marks: 40, max_external_marks: 60, total_maximum_marks: 100, credits: credits };
+};
+
+const examSessionTypes = ['Mid Term', 'End Term', 'Quiz 1', 'Quiz 2', 'Practical', 'Makeup'];
+
+const generateExamSessionData = async (semesterId = 1, existingSessions = new Set) => {
+  const sessionType = examSessionTypes[Math.floor(Math.random() * examSessionTypes.length)];
+  const sessionName = `${sessionType} ${new Date().getFullYear()}`;
+  const sessionKey = `${semesterId}|${sessionName}`;
+  if (existingSessions.has(sessionKey)) return null;
+  existingSessions.add(sessionKey);
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - (Math.random() * 6 + 1));
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 3);
+  return { semester_id: semesterId, session_name: sessionName, start_date: startDate.toISOString().split('T')[0], end_date: endDate.toISOString().split('T')[0], status: ['Active', 'Inactive'][Math.floor(Math.random() * 2)] };
+};
+
+const generateResultData = async (usn, subjectCode, examSessionId, existingResults = new Set) => {
+  const cieMarks = 25 + Math.random() * 25;
+  const seeMarks = 20 + Math.random() * 30;
+  const totalMarks = Math.round((cieMarks + seeMarks) * 100) / 100;
+  const percentage = (totalMarks / 100) * 100;
+  let grade = null, status = 'Fail';
+  if (percentage >= 80) { grade = 'A+'; status = 'Pass'; }
+  else if (percentage >= 70) { grade = 'A'; status = 'Pass'; }
+  else if (percentage >= 60) { grade = 'B'; status = 'Pass'; }
+  else if (percentage >= 50) { grade = 'C'; status = 'Pass'; }
+  else if (percentage >= 40) { grade = 'D'; status = 'Pass'; }
+  const resultKey = `${usn}|${subjectCode}|${examSessionId}`;
+  if (existingResults.has(resultKey)) return null;
+  existingResults.add(resultKey);
+  return { usn, subject_code: subjectCode, subject_name: subjectCode, marks_obtained: totalMarks, max_marks: 100, grade, status, exam_session_id: examSessionId };
+};

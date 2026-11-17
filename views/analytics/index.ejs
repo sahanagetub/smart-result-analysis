@@ -1,134 +1,48 @@
 <% layout('../layouts/main') -%>
+<link rel="stylesheet" href="/css/analytics.css">
 
-<div id="dbStatus" class="status-banner" style="display:none;"></div>
+<main class="analytics-page" aria-labelledby="analyticsTitle">
+  <header class="analytics-header"><div><h1 id="analyticsTitle">Academic Analytics</h1><p>Explore historical results, grades and performance comparisons.</p></div></header>
+  <form id="analyticsFilters" class="analytics-filters">
+    <label>Batch <select id="filterBatch"><option value="">All batches</option></select></label>
+    <label>Academic year <select id="filterYear"><option value="">All years</option></select></label>
+    <label>Semester <select id="filterSemester"><option value="">All semesters</option></select></label>
+    <label>Examination <select id="filterSession"><option value="">All examinations</option></select></label>
+    <label>Subject <select id="filterSubject"><option value="">All subjects</option></select></label>
+    <label>Student search <input id="studentSearch" type="search" maxlength="80" placeholder="USN or student name"></label>
+    <label>Compare by <select id="comparisonDimension"><option value="batch">Batch</option><option value="academicYear">Academic year</option><option value="semester" selected>Semester</option><option value="examination">Examination</option><option value="subject">Subject</option></select></label>
+    <div class="analytics-actions"><button class="btn btn-primary" type="submit">Apply filters</button><button class="btn" id="resetAnalytics" type="button">Reset</button></div>
+    <p class="analytics-schema-note">Results use stored combined marks, grades and pass/fail status. CIE/SEE, revaluation and backlog history are not stored.</p>
+  </form>
 
-<div class="cards-grid">
-  <div class="card stat-card">
-    <h3>Overall Pass %</h3>
-    <p class="stat-value" id="passPercent">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Total Students</h3>
-    <p class="stat-value" id="totalStudents">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Appeared Students</h3>
-    <p class="stat-value" id="appearedStudents">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Passed Students</h3>
-    <p class="stat-value" id="passedStudents">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Failed Students</h3>
-    <p class="stat-value" id="failedStudents">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Class Average %</h3>
-    <p class="stat-value" id="classAveragePercentage">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Highest Score</h3>
-    <p class="stat-value" id="highestScore">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Lowest Score</h3>
-    <p class="stat-value" id="lowestScore">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Total Results</h3>
-    <p class="stat-value" id="totalResults">-</p>
-  </div>
-</div>
+  <div id="analyticsLoading" class="analytics-message" role="status" hidden>Loading analytics…</div>
+  <div id="analyticsError" class="analytics-message analytics-error" role="alert" hidden></div>
+  <div id="analyticsEmpty" class="analytics-message" hidden>No result data matches these filters.</div>
 
-<div class="overview-grid">
-  <div class="card overview-card">
-    <h3>Class Analysis</h3>
-    <div class="chart-wrap"><canvas id="classAnalysisChart"></canvas></div>
-    <table id="classAnalysisTable" class="data-table">
-      <thead>
-        <tr>
-          <th>Metric</th>
-          <th>Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>Total Pass Count</td><td id="classTotalPassCount">-</td></tr>
-        <tr><td>Total Fail Count</td><td id="classTotalFailCount">-</td></tr>
-        <tr><td>Pass Percentage</td><td id="classPassPercentage">-</td></tr>
-        <tr><td>Average Percentage</td><td id="classAveragePercentage">-</td></tr>
-        <tr><td>Highest Percentage</td><td id="classHighestPercentage">-</td></tr>
-        <tr><td>Lowest Percentage</td><td id="classLowestPercentage">-</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card overview-card">
-    <h3>Subject Analysis</h3>
-    <div class="chart-wrap"><canvas id="subjectAnalysisChart"></canvas></div>
-    <table id="subjectAnalysisTable" class="data-table">
-      <thead>
-        <tr>
-          <th>Subject</th>
-          <th>Appeared</th>
-          <th>Passed</th>
-          <th>Failed</th>
-          <th>Pass %</th>
-          <th>Avg Marks</th>
-          <th>Highest</th>
-          <th>Lowest</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div class="card overview-card">
-    <h3>Toppers</h3>
-    <table id="toppersTable" class="data-table">
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th>USN</th>
-          <th>Student Name</th>
-          <th>Total Marks</th>
-          <th>Percentage</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
+  <section class="analytics-stats" aria-label="Overview metrics">
+    <article class="card"><h2>Students</h2><strong id="totalStudents">—</strong></article>
+    <article class="card"><h2>Results</h2><strong id="totalResults">—</strong></article>
+    <article class="card"><h2>Pass rate</h2><strong id="passPercent">—</strong></article>
+    <article class="card"><h2>Failure rate</h2><strong id="failurePercent">—</strong></article>
+    <article class="card"><h2>Average marks</h2><strong id="averageMarks">—</strong></article>
+    <article class="card"><h2>Average percentage</h2><strong id="averagePercentage">—</strong></article>
+  </section>
 
-<div class="filters-bar">
-  <div class="filter-group">
-    <label>Batch</label>
-    <select id="filterBatch">
-      <option value="">All Batches</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Semester</label>
-    <select id="filterSemester">
-      <option value="">All Semesters</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Session</label>
-    <select id="filterSession">
-      <option value="">All Sessions</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Show</label>
-    <select id="topperLimit">
-      <option value="3">Top 3</option>
-      <option value="5" selected>Top 5</option>
-      <option value="10">Top 10</option>
-    </select>
-  </div>
-  <button id="refreshAnalytics" class="btn btn-primary">Refresh Analytics</button>
-</div>
+  <section class="analytics-grid">
+    <article class="card analytics-panel"><h2>Pass and fail</h2><div class="analytics-chart"><canvas id="passFailChart" aria-label="Pass and fail result counts"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Grade distribution</h2><div class="analytics-chart"><canvas id="gradeChart" aria-label="Stored grade distribution"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Grades by semester</h2><div class="analytics-chart"><canvas id="gradeSemesterChart" aria-label="Grade distribution compared by semester"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Grades by examination</h2><div class="analytics-chart"><canvas id="gradeExaminationChart" aria-label="Grade distribution compared by examination"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Semester performance</h2><div class="analytics-chart"><canvas id="semesterChart" aria-label="Semester pass and average percentages"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Examination comparison</h2><div class="analytics-chart"><canvas id="examinationChart" aria-label="Examination pass percentage"></canvas></div></article>
+    <article class="card analytics-panel"><h2>Selected dimension comparison</h2><div class="analytics-chart"><canvas id="comparisonChart" aria-label="Selected dimension average percentage"></canvas></div></article>
+    <article class="card analytics-panel analytics-wide"><h2>Subject comparison</h2><div class="analytics-chart analytics-chart-tall"><canvas id="subjectChart" aria-label="Subject average and pass percentage"></canvas></div></article>
+  </section>
 
-<div id="analyticsError" class="alert alert-error" style="display:none;"></div>
+  <section class="card analytics-table-panel"><h2>Subject performance</h2><div class="analytics-table-wrap"><table class="data-table"><thead><tr><th>Subject</th><th>Semester</th><th>Results</th><th>Passed</th><th>Failed</th><th>Pass %</th><th>Average marks</th><th>Grades</th></tr></thead><tbody id="subjectRows"></tbody></table></div></section>
+
+  <section class="card analytics-table-panel"><h2>Student performance</h2><div class="analytics-table-wrap"><table class="data-table"><thead><tr><th>USN</th><th>Student</th><th>Batch</th><th>Results</th><th>Pass %</th><th>CGPA*</th><th>Semester results</th></tr></thead><tbody id="studentRows"></tbody></table></div><p class="analytics-schema-note">* CGPA uses stored grades and subject credits through the project calculation service. It is blank for partial scopes or ambiguous repeat attempts. SGPA needs a selected examination session.</p></section>
+</main>
 
 <script src="/vendor/chart.js/chart.umd.js"></script>
 <script src="/js/analytics.js"></script>

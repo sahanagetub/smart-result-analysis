@@ -36,16 +36,27 @@ async function createResultsTable() {
   }
 }
 
-async function createResult(data) {
+async function createResult(data, executor = null) {
   if (isDbDisabled()) throw new Error('Database integration is disabled.');
-  const pool = getPool();
-  if (!pool) throw new Error('Database pool unavailable.');
-  const [result] = await pool.execute(
+  const queryExecutor = executor || getPool();
+  if (!queryExecutor) throw new Error('Database pool unavailable.');
+  const [result] = await queryExecutor.execute(
     `INSERT INTO results (usn, subject_code, subject_name, marks_obtained, max_marks, grade, status, exam_session_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [data.usn, data.subject_code, data.subject_name, data.marks_obtained, data.max_marks, data.grade || null, data.status, data.exam_session_id]
   );
   return result.insertId;
+}
+
+async function resultExists(usn, subjectCode, examSessionId, executor = null) {
+  if (isDbDisabled()) return false;
+  const queryExecutor = executor || getPool();
+  if (!queryExecutor) throw new Error('Database pool unavailable.');
+  const [rows] = await queryExecutor.execute(
+    'SELECT id FROM results WHERE usn = ? AND subject_code = ? AND exam_session_id = ? LIMIT 1',
+    [usn, subjectCode, examSessionId]
+  );
+  return rows.length > 0;
 }
 
 async function getAllResults(search = '') {
@@ -102,6 +113,7 @@ async function deleteResult(id) {
 module.exports = {
   createResultsTable,
   createResult,
+  resultExists,
   getAllResults,
   getResultsByExamSession,
   getResultStats,

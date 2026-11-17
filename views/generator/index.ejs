@@ -1,0 +1,55 @@
+<% layout('../layouts/main') -%>
+
+<div class="admin-section">
+  <div class="card stat-card">
+    <h3>Test Data Generator</h3>
+    <p>Generate synthetic students and result rows in an explicitly configured non-production test database.</p>
+  </div>
+
+  <form id="generatorForm" class="card form-card">
+    <input type="hidden" id="generatorCsrf" value="<%= csrfToken || '' %>">
+    <div class="card-body">
+      <div id="generatorNotice" role="status" aria-live="polite"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="batchId">Batch</label>
+          <select id="batchId" name="batchId" required><option value="">Loading batches…</option></select>
+        </div>
+        <div class="form-group">
+          <label for="semesterId">Semester</label>
+          <select id="semesterId" name="semesterId" required disabled><option value="">Select a batch first</option></select>
+        </div>
+        <div class="form-group">
+          <label for="examSessionId">Exam Session</label>
+          <select id="examSessionId" name="examSessionId" required disabled><option value="">Select a semester first</option></select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Students to generate</label>
+          <input type="number" id="quantity" name="quantity" min="1" max="50" value="10" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="subjectIds">Subjects</label>
+        <select id="subjectIds" name="subjectIds" multiple required size="6" disabled></select>
+        <small class="text-muted">Use Ctrl (Windows) or Command (Mac) to select multiple subjects.</small>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label><input type="checkbox" id="includeGeneratedAcademicItems"> Also create a synthetic exam session and subjects in this semester</label>
+        </div>
+        <div class="form-group" id="generatedSubjectCountGroup" style="display:none">
+          <label for="generatedSubjectCount">Synthetic subjects to create</label>
+          <input type="number" id="generatedSubjectCount" min="1" max="5" value="1">
+        </div>
+      </div>
+      <div id="generationStatus" style="display:none"></div>
+      <div id="errorStatus" style="display:none" role="alert"></div>
+      <div id="generationPreview" style="display:none"></div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" id="generateBtn" class="btn btn-primary" disabled>Generate Test Data</button>
+    </div>
+  </form>
+</div>
+
+<script src="/js/generator.js" defer></script>

@@ -49,15 +49,42 @@ async function getAllBatches(search = '') {
   }
   const pool = getPool();
   if (!pool) return [];
-  let sql = `SELECT id, batch_name, start_year, end_year, status, created_at, updated_at FROM batches`;
+  let sql = `
+    SELECT b.id, b.batch_name, b.start_year, b.end_year, b.status, b.created_at, b.updated_at,
+           COUNT(s.id) AS student_count
+    FROM batches b
+    LEFT JOIN students s ON s.batch_id = b.id
+  `;
   const params = [];
   if (search) {
-    sql += ` WHERE batch_name LIKE ?`;
+    sql += ` WHERE b.batch_name LIKE ?`;
     params.push(`%${search}%`);
   }
-  sql += ` ORDER BY created_at DESC`;
+  sql += ` GROUP BY b.id, b.batch_name, b.start_year, b.end_year, b.status, b.created_at, b.updated_at ORDER BY b.created_at DESC`;
   const [rows] = await pool.execute(sql, params);
   return rows;
+}
+
+async function getRelatedCounts(batchId) {
+  if (isDbDisabled()) {
+    return { studentsCount: 0, semestersCount: 0 };
+  }
+  const pool = getPool();
+  if (!pool) return { studentsCount: 0, semestersCount: 0 };
+
+  const [studentRows] = await pool.execute(
+    'SELECT COUNT(*) AS cnt FROM students WHERE batch_id = ?',
+    [batchId]
+  );
+  const [semesterRows] = await pool.execute(
+    'SELECT COUNT(*) AS cnt FROM semesters WHERE batch_id = ?',
+    [batchId]
+  );
+
+  return {
+    studentsCount: Number(studentRows[0]?.cnt || 0),
+    semestersCount: Number(semesterRows[0]?.cnt || 0)
+  };
 }
 
 async function getBatchById(id) {
@@ -152,5 +179,6 @@ module.exports = {
   deleteBatch,
   updateBatchStatus,
   batchNameExists,
-  getBatchCounts
+  getBatchCounts,
+  getRelatedCounts
 };

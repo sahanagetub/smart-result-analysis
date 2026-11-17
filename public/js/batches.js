@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${b.start_year}</td>
         <td>${b.end_year}</td>
         <td><span class="status-badge ${statusClass}">${b.status}</span></td>
-        <td>0</td>
+        <td>${b.student_count !== undefined ? b.student_count : 0}</td>
         <td>${created}</td>
         <td class="action-links">
           <a href="#" class="action-edit" data-id="${b.id}">Edit</a>

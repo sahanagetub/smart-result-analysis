@@ -39,7 +39,7 @@ async function createSemester(data) {
   if (!pool) throw new Error('Database pool unavailable.');
   const [result] = await pool.execute(
     'INSERT INTO semesters (batch_id, semester_number, semester_name, status) VALUES (?, ?, ?, ?)',
-    [data.batch_id, data.semester_number, data.semester_name, data.status]
+    [data.batch_id, data.semester_number, data.semester_name, data.status || 'Active']
   );
   return result.insertId;
 }
@@ -48,17 +48,33 @@ async function getSemestersByBatch(batchId, search = '', statusFilter = '') {
   if (isDbDisabled()) return [];
   const pool = getPool();
   if (!pool) return [];
-  let sql = 'SELECT id, batch_id, semester_number, semester_name, status, created_at, updated_at FROM semesters WHERE batch_id = ?';
-  const params = [batchId];
+  let sql = `
+    SELECT s.id, s.batch_id, s.semester_number, s.semester_name, s.status, s.created_at, s.updated_at,
+           b.batch_name,
+           (SELECT COUNT(*) FROM exam_sessions es WHERE es.semester_id = s.id) AS exam_session_count,
+           (SELECT COUNT(*) FROM subjects sub WHERE sub.semester_id = s.id) AS subject_count
+    FROM semesters s
+    LEFT JOIN batches b ON s.batch_id = b.id
+  `;
+  const conditions = [];
+  const params = [];
+
+  if (batchId) {
+    conditions.push('s.batch_id = ?');
+    params.push(batchId);
+  }
   if (search) {
-    sql += ' AND (semester_name LIKE ? OR semester_number LIKE ?)';
+    conditions.push('(s.semester_name LIKE ? OR s.semester_number LIKE ?)');
     params.push('%' + search + '%', '%' + search + '%');
   }
   if (statusFilter) {
-    sql += ' AND status = ?';
+    conditions.push('s.status = ?');
     params.push(statusFilter);
   }
-  sql += ' ORDER BY semester_number';
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ' ORDER BY s.semester_number ASC';
   const [rows] = await pool.execute(sql, params);
   return rows;
 }
@@ -68,10 +84,54 @@ async function getSemesterById(id) {
   const pool = getPool();
   if (!pool) return null;
   const [rows] = await pool.execute(
-    'SELECT id, batch_id, semester_number, semester_name, status, created_at, updated_at FROM semesters WHERE id = ?',
+    `SELECT s.id, s.batch_id, s.semester_number, s.semester_name, s.status, s.created_at, s.updated_at,
+            b.batch_name
+     FROM semesters s
+     LEFT JOIN batches b ON s.batch_id = b.id
+     WHERE s.id = ?`,
     [id]
   );
   return rows.length ? rows[0] : null;
+}
+
+async function updateSemester(id, data) {
+  if (isDbDisabled()) throw new Error('Database integration is disabled.');
+  const pool = getPool();
+  if (!pool) throw new Error('Database pool unavailable.');
+
+  const fields = [];
+  const params = [];
+
+  if (data.semester_number !== undefined) {
+    fields.push('semester_number = ?');
+    params.push(data.semester_number);
+  }
+  if (data.semester_name !== undefined) {
+    fields.push('semester_name = ?');
+    params.push(data.semester_name);
+  }
+  if (data.status !== undefined) {
+    fields.push('status = ?');
+    params.push(data.status);
+  }
+
+  if (fields.length === 0) return false;
+  params.push(id);
+
+  const [result] = await pool.execute(
+    `UPDATE semesters SET ${fields.join(', ')} WHERE id = ?`,
+    params
+  );
+  return result.affectedRows > 0;
+}
+
+async function deleteSemester(id) {
+  if (isDbDisabled()) throw new Error('Database integration is disabled.');
+  const pool = getPool();
+  if (!pool) throw new Error('Database pool unavailable.');
+
+  const [result] = await pool.execute('DELETE FROM semesters WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 async function semesterExists(batchId, semesterNumber, excludeId = null) {
@@ -88,10 +148,35 @@ async function semesterExists(batchId, semesterNumber, excludeId = null) {
   return rows.length > 0;
 }
 
+async function getRelatedCounts(semesterId) {
+  if (isDbDisabled()) {
+    return { subjectsCount: 0, examSessionsCount: 0 };
+  }
+  const pool = getPool();
+  if (!pool) return { subjectsCount: 0, examSessionsCount: 0 };
+
+  const [subjectRows] = await pool.execute(
+    'SELECT COUNT(*) AS cnt FROM subjects WHERE semester_id = ?',
+    [semesterId]
+  );
+  const [sessionRows] = await pool.execute(
+    'SELECT COUNT(*) AS cnt FROM exam_sessions WHERE semester_id = ?',
+    [semesterId]
+  );
+
+  return {
+    subjectsCount: Number(subjectRows[0]?.cnt || 0),
+    examSessionsCount: Number(sessionRows[0]?.cnt || 0)
+  };
+}
+
 module.exports = {
   createSemestersTable,
   createSemester,
   getSemestersByBatch,
   getSemesterById,
-  semesterExists
+  updateSemester,
+  deleteSemester,
+  semesterExists,
+  getRelatedCounts
 };

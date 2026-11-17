@@ -1,24 +1,37 @@
 const semesterModel = require('../models/semesterModel');
-const { isDbDisabled } = require('../config/db');
+const batchModel = require('../models/batchModel');
 
 async function initSemestersTable() {
   await semesterModel.createSemestersTable();
 }
 
-async function listSemestersService(batchId, search = '') {
-  return semesterModel.getSemestersByBatch(batchId, search);
+async function listSemestersService(batchId = '', search = '', statusFilter = '') {
+  return semesterModel.getSemestersByBatch(batchId, search, statusFilter);
 }
 
 async function getSemesterByIdService(id) {
-  return semesterModel.getSemesterById(id);
+  const semester = await semesterModel.getSemesterById(id);
+  if (!semester) {
+    const err = new Error('Semester not found.');
+    err.status = 404;
+    throw err;
+  }
+  return semester;
 }
 
 async function createSemesterService(data) {
   const { batch_id, semester_number, semester_name, status } = data;
 
-  // Validate required fields
   if (!batch_id || !semester_number || !semester_name) {
     const err = new Error('Batch ID, semester number, and semester name are required.');
+    err.status = 400;
+    throw err;
+  }
+
+  // Validate batch exists
+  const batch = await batchModel.getBatchById(batch_id);
+  if (!batch) {
+    const err = new Error('Selected batch does not exist.');
     err.status = 400;
     throw err;
   }
@@ -26,32 +39,22 @@ async function createSemesterService(data) {
   // Check if semester already exists in this batch
   const exists = await semesterModel.semesterExists(batch_id, semester_number);
   if (exists) {
-    const err = new Error('A semester with this name already exists in the batch.');
+    const err = new Error(`Semester ${semester_number} already exists in this batch.`);
     err.status = 409;
     throw err;
   }
 
-  // Create the semester
-  const result = await semesterModel.createSemester({
+  const id = await semesterModel.createSemester({
     batch_id,
-    semester_number,
-    semester_name,
+    semester_number: parseInt(semester_number, 10),
+    semester_name: String(semester_name).trim(),
     status: status || 'Active'
   });
 
-  return result;
+  return semesterModel.getSemesterById(id);
 }
 
 async function updateSemesterService(id, data) {
-  const { semester_name, status } = data;
-
-  if (!semester_name) {
-    const err = new Error('Semester name is required.');
-    err.status = 400;
-    throw err;
-  }
-
-  // Check if semester exists
   const existing = await semesterModel.getSemesterById(id);
   if (!existing) {
     const err = new Error('Semester not found.');
@@ -59,22 +62,25 @@ async function updateSemesterService(id, data) {
     throw err;
   }
 
-  // Update the semester
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    const err = new Error('Database pool unavailable.');
-    err.status = 500;
-    throw err;
+  if (data.semester_number !== undefined) {
+    const semNum = parseInt(data.semester_number, 10);
+    const exists = await semesterModel.semesterExists(existing.batch_id, semNum, id);
+    if (exists) {
+      const err = new Error(`Semester ${semNum} already exists in this batch.`);
+      err.status = 409;
+      throw err;
+    }
+    data.semester_number = semNum;
   }
 
-  const [result] = await pool.execute(
-    'UPDATE semesters SET semester_name = ?, status = ? WHERE id = ?',
-    [semester_name, status || existing.status, id]
-  );
+  if (data.semester_name !== undefined) {
+    data.semester_name = String(data.semester_name).trim();
+  }
 
-  if (result.affectedRows === 0) {
+  const updated = await semesterModel.updateSemester(id, data);
+  if (!updated) {
     const err = new Error('Semester update failed.');
-    err.status = 500;
+    err.status = 400;
     throw err;
   }
 
@@ -82,7 +88,6 @@ async function updateSemesterService(id, data) {
 }
 
 async function deleteSemesterService(id) {
-  // Check if semester exists
   const existing = await semesterModel.getSemesterById(id);
   if (!existing) {
     const err = new Error('Semester not found.');
@@ -90,25 +95,25 @@ async function deleteSemesterService(id) {
     throw err;
   }
 
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    const err = new Error('Database pool unavailable.');
-    err.status = 500;
+  // Related record protection
+  const { subjectsCount, examSessionsCount } = await semesterModel.getRelatedCounts(id);
+  if (subjectsCount > 0 || examSessionsCount > 0) {
+    const reasons = [];
+    if (subjectsCount > 0) reasons.push(`${subjectsCount} subject(s)`);
+    if (examSessionsCount > 0) reasons.push(`${examSessionsCount} exam session(s)`);
+    const err = new Error(`Cannot delete semester because it has related records: ${reasons.join(' and ')}. Please remove or reassign them first.`);
+    err.status = 400;
     throw err;
   }
 
-  const [result] = await pool.execute(
-    'DELETE FROM semesters WHERE id = ?',
-    [id]
-  );
-
-  if (result.affectedRows === 0) {
+  const deleted = await semesterModel.deleteSemester(id);
+  if (!deleted) {
     const err = new Error('Semester delete failed.');
     err.status = 500;
     throw err;
   }
 
-  return { message: 'Semester deleted successfully.' };
+  return { message: 'Semester deleted successfully.', semester: existing };
 }
 
 module.exports = {
@@ -119,4 +124,3 @@ module.exports = {
   updateSemesterService,
   deleteSemesterService
 };
- 

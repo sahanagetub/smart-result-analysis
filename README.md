@@ -58,7 +58,15 @@ npm start                # or npm run dev
 
 Open http://localhost:3000 (redirects to login/dashboard).
 
-Default foundation admin: admin / Admin@123 (configure via .env).
+### Initial administrator and production sessions
+
+There are no default administrator credentials. For first-time bootstrap, create a unique administrator username and password in a controlled environment. Set `ADMIN_USERNAME`, `ADMIN_DISPLAY_NAME`, and `ADMIN_PASSWORD_HASH` in the environment; generate the hash locally with `node -e "require('bcrypt').hash(process.argv[1], 12).then(console.log)" "your-new-password"`. Keep the plaintext password out of source control and logs. Remove the bootstrap credentials after creating a database-backed administrator.
+
+Production requires a unique random `SESSION_SECRET` of at least 32 characters. The built-in Express MemoryStore is for development only. Configure a persistent, production-appropriate session store before deploying multiple workers or restarting production instances; this repository does not currently configure one, so it is not deployment-ready.
+
+### Subject marks schema compatibility
+
+Some existing databases predate the subject maximum-mark columns. A safe, additive migration is available at `database/migrations/20261117_add_subject_mark_columns.js`. Review the script and confirm the target schema before applying it. In PowerShell, first set `$env:NODE_ENV='development'; $env:DB_DISABLED='false'; $env:DB_NAME='<verified-safe-database>'; $env:EXPECTED_SCHEMA_DATABASE_NAME='<verified-safe-database>'`. Preview the current schema without writes using `node database/migrations/20261117_add_subject_mark_columns.js` (no `--apply`). After verifying that the connected database is the intended non-production database, set `$env:ALLOW_SUBJECT_SCHEMA_MIGRATION='true'` and run `node database/migrations/20261117_add_subject_mark_columns.js --apply`. The script refuses production, requires exact environment/connected database-name confirmation, and adds only missing columns with application defaults. It has not been run against this workspace database.
 
 ## Features Complete
 ✅ Login/logout/session authentication

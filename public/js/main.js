@@ -54,14 +54,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Logout handler
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+  // Logout handler shared by the header and sidebar. The API requires the
+  // session-bound CSRF token for this state-changing request.
+  async function logout(event) {
+    if (event) event.preventDefault();
+      try {
+        const csrf = await fetch('/api/auth/csrf', { credentials: 'include' }).then((r) => r.json());
+        if (!csrf || !csrf.csrfToken) throw new Error('CSRF token unavailable');
+        const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrf.csrfToken } });
+        if (!response.ok) throw new Error('Logout failed');
+      } catch (e) {}
       // clear client-side state
       try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
       window.location.href = '/login.html';
-    });
   }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  const sidebarLogoutForm = document.getElementById('sidebarLogoutForm');
+  if (sidebarLogoutForm) sidebarLogoutForm.addEventListener('submit', logout);
 });

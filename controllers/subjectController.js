@@ -1,9 +1,9 @@
 const subjectService = require('../services/subjectService');
+const subjectModel = require('../models/subjectModel');
 
 async function createSubject(req, res, next) {
   try {
-    const id = await subjectService.createSubjectService(req.body);
-    const subject = await subjectService.getSubjectService(id);
+    const subject = await subjectService.createSubjectService(req.body);
     res.status(201).json({ success: true, data: subject, message: 'Subject created successfully.' });
   } catch (err) {
     next(err);
@@ -13,8 +13,8 @@ async function createSubject(req, res, next) {
 async function getAllSubjects(req, res, next) {
   try {
     const search = req.query.search || '';
-    const subjects = await subjectService.listSubjectsService(search);
-    // Get counts for pagination
+    const semesterId = req.query.semesterId || req.query.semester_id || '';
+    const subjects = await subjectService.listSubjectsService(search, semesterId);
     const counts = await subjectModel.getSubjectsCount(search);
     res.json({ success: true, data: subjects, counts: counts });
   } catch (err) {

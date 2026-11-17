@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, csrfMiddleware } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 const batchController = require('../controllers/batchController');
 
@@ -30,15 +30,15 @@ router.get('/', requireAuth, batchController.listBatches);
 router.get('/:id', requireAuth, batchController.getBatch);
 
 // POST create batch
-router.post('/', requireAuth, batchValidation, handleValidation, batchController.createBatch);
+router.post('/', requireAuth, csrfMiddleware, batchValidation, handleValidation, batchController.createBatch);
 
 // PUT update batch
-router.put('/:id', requireAuth, batchValidation, handleValidation, batchController.updateBatch);
+router.put('/:id', requireAuth, csrfMiddleware, batchValidation, handleValidation, batchController.updateBatch);
 
 // PATCH status
-router.patch('/:id/status', requireAuth, statusValidation, handleValidation, batchController.changeStatus);
+router.patch('/:id/status', requireAuth, csrfMiddleware, statusValidation, handleValidation, batchController.changeStatus);
 
 // DELETE batch
-router.delete('/:id', requireAuth, batchController.deleteBatch);
+router.delete('/:id', requireAuth, csrfMiddleware, batchController.deleteBatch);
 
 module.exports = router;

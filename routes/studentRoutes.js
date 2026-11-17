@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, csrfMiddleware } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const studentController = require('../controllers/studentController');
@@ -26,6 +26,9 @@ function handleValidation(req, res, next) {
   next();
 }
 
+// GET all students (supports ?batchId= or ?search=)
+router.get('/', requireAuth, studentController.listStudents);
+
 // GET students for a specific batch
 router.get('/batch/:batchId', requireAuth, studentController.listStudents);
 
@@ -33,18 +36,18 @@ router.get('/batch/:batchId', requireAuth, studentController.listStudents);
 router.get('/:id', requireAuth, studentController.getStudent);
 
 // POST add student
-router.post('/', requireAuth, studentValidation, handleValidation, studentController.addStudent);
+router.post('/', requireAuth, csrfMiddleware, studentValidation, handleValidation, studentController.addStudent);
 
 // PUT update student
-router.put('/:id', requireAuth, studentController.updateStudent);
+router.put('/:id', requireAuth, csrfMiddleware, studentController.updateStudent);
 
 // DELETE delete student
-router.delete('/:id', requireAuth, studentController.deleteStudent);
+router.delete('/:id', requireAuth, csrfMiddleware, studentController.deleteStudent);
 
 // POST import students (upload + parse + validate → preview)
-router.post('/import', requireAuth, upload.single('importFile'), studentController.importStudents);
+router.post('/import', requireAuth, csrfMiddleware, upload.single('importFile'), studentController.importStudents);
 
 // POST confirm import (save validated students)
-router.post('/import/confirm', requireAuth, studentController.confirmImportStudents);
+router.post('/import/confirm', requireAuth, csrfMiddleware, studentController.confirmImportStudents);
 
 module.exports = router;

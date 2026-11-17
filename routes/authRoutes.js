@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, csrfMiddleware } = require('../middleware/authMiddleware');
 const authController = require('../controllers/authController');
+const userController = require('../controllers/userController');
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -16,6 +17,7 @@ const loginLimiter = rateLimit({
 router.post(
   '/login',
   loginLimiter,
+  csrfMiddleware,
   [
     body('username').trim().notEmpty().withMessage('Username is required.').escape(),
     body('password').notEmpty().withMessage('Password is required.')
@@ -30,30 +32,29 @@ router.post(
   authController.login
 );
 
-router.post('/logout', authController.logout);
-router.get('/me', authController.me);
+router.post('/logout', csrfMiddleware, authController.logout);
+router.get('/me', csrfMiddleware, authController.me);
 
-// Admin-only user creation
-router.post(
-  '/users',
-  requireAuth,
-  requireAdmin,
-  [
-    body('username').trim().notEmpty().withMessage('Username is required.').escape(),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters.'),
-    body('full_name').trim().notEmpty().withMessage('Full name is required.'),
-    body('email').isEmail().normalizeEmail().withMessage('Valid email is required.'),
-    body('role').optional().isIn(['Admin', 'Staff']).withMessage('Role must be Admin or Staff.'),
-    body('status').optional().isIn(['Active', 'Inactive']).withMessage('Status must be Active or Inactive.')
-  ],
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
-    next();
-  },
-  authController.createUser
-);
+router.get('/csrf', requireAuth, (req, res) => res.json({ success: true, csrfToken: req.session._csrf }));
+
+const validateUser = [
+  body('username').optional().trim().notEmpty().isLength({ max: 50 }).withMessage('Username must contain 1 to 50 characters.'),
+  body('password').optional({ values: 'falsy' }).isLength({ min: 6 }).withMessage('Password must be at least 6 characters.'),
+  body('full_name').optional().trim().notEmpty().isLength({ max: 100 }).withMessage('Full name must contain 1 to 100 characters.'),
+  body('email').optional().trim().isEmail().isLength({ max: 100 }).withMessage('Valid email is required.'),
+  body('role').optional().isIn(['Admin', 'Staff']).withMessage('Role must be Admin or Staff.'),
+  body('status').optional().isIn(['Active', 'Inactive']).withMessage('Status must be Active or Inactive.')
+];
+const validateBody = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, message: 'Validation failed.', errors: errors.array() });
+  next();
+};
+const adminUsers = [requireAuth, requireAdmin];
+router.get('/users', ...adminUsers, userController.listUsers);
+router.get('/users/:id', ...adminUsers, userController.getUser);
+router.post('/users', ...adminUsers, csrfMiddleware, validateUser, validateBody, userController.createUser);
+router.put('/users/:id', ...adminUsers, csrfMiddleware, validateUser, validateBody, userController.updateUser);
+router.delete('/users/:id', ...adminUsers, csrfMiddleware, userController.deleteUser);
 
 module.exports = router;

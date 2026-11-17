@@ -1,327 +1,277 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const dbDisabled = (document.body.dataset.dbDisabled === 'true');
   const dbStatusBanner = document.getElementById('dbStatusBanner');
   const pageMessage = document.getElementById('pageMessage');
+  const addSubjectBtn = document.getElementById('addSubjectBtn');
+  const cancelSubjectBtn = document.getElementById('cancelSubjectBtn');
+  const addSubjectForm = document.getElementById('addSubjectForm');
   const subjectForm = document.getElementById('subjectForm');
-  const semesterSelect = document.getElementById('semesterSelect');
-  const subjectCodeInput = document.getElementById('subjectCode');
-  const subjectNameInput = document.getElementById('subjectName');
-  const creditsInput = document.getElementById('credits');
-  const maxInternalInput = document.getElementById('maxInternal');
-  const maxExternalInput = document.getElementById('maxExternal');
-  const totalMaximumInput = document.getElementById('totalMaximum');
-  const saveBtn = document.getElementById('saveSubjectBtn');
   const subjectsTableBody = document.getElementById('subjectsTableBody');
+  const subjectSearch = document.getElementById('subjectSearch');
 
-  const errEls = {
-    subjectCode: document.getElementById('errSubjectCode'),
-    subjectName: document.getElementById('errSubjectName'),
-    credits: document.getElementById('errCredits'),
-    maxInternal: document.getElementById('errMaxInternal'),
-    maxExternal: document.getElementById('errMaxExternal'),
-    totalMaximum: document.getElementById('errTotalMaximum')
-  };
+  const subjectId = document.getElementById('subjectId');
+  const subjectCode = document.getElementById('subjectCode');
+  const subjectName = document.getElementById('subjectName');
+  const subjectSemester = document.getElementById('subjectSemester');
+  const subjectCredits = document.getElementById('subjectCredits');
+  const subjectStatus = document.getElementById('subjectStatus');
+  const saveSubjectBtn = document.getElementById('saveSubjectBtn');
+
+  const errSubjectCode = document.getElementById('errSubjectCode');
+  const errSubjectName = document.getElementById('errSubjectName');
+  const errSubjectSemester = document.getElementById('errSubjectSemester');
+  const errSubjectCredits = document.getElementById('errSubjectCredits');
+  const errSubjectStatus = document.getElementById('errSubjectStatus');
 
   let subjects = [];
-
-  function clearErrors() {
-    Object.values(errEls).forEach((e) => { if (e) e.textContent = ''; });
-    pageMessage.style.display = 'none';
-  }
+  let semesters = [];
+  let editId = null;
 
   function showMessage(text, type = 'info') {
+    if (!pageMessage) return;
     pageMessage.className = 'status-banner status-' + type;
     pageMessage.textContent = text;
     pageMessage.style.display = 'block';
   }
 
-  function setLoading(btn, loading) {
-    if (btn) {
-      btn.disabled = loading;
-      btn.textContent = loading ? 'Saving...' : 'Add Subject';
-    }
-  }
-subjectForm.addEventListener('submit', handleSubmit);
-  cancelFormBtn.addEventListener('click', resetForm);
-  semesterSelect.addEventListener('change', () => {
-    loadSubjects(semesterSelect.value);
-  });
-
-  // Search handler
-  const subjectSearch = document.getElementById('subjectSearch');
-  const clearSearch = document.getElementById('clearSearch');
-  let currentSearch = '';
-
-  subjectSearch.addEventListener('input', (e) => {
-    clearTimeout(window._subjectSearchTimer);
-    window._subjectSearchTimer = setTimeout(() => {
-      currentSearch = e.target.value.trim();
-      clearSearch.style.display = currentSearch ? 'inline-block' : 'none';
-      loadSubjects(semesterSelect.value, currentSearch);
-    }, 300);
-  });
-
-  clearSearch.addEventListener('click', () => {
-    subjectSearch.value = '';
-    currentSearch = '';
-    clearSearch.style.display = 'none';
-    loadSubjects(semesterSelect.value);
-  });
-
-  // Delete subject handler
-  subjectsTableBody.addEventListener('click', async (e) => {
-    const target = e.target.closest('.delete-subject');
-    if (target) {
-      const id = target.dataset.id;
-      if (confirm('Are you sure you want to delete this subject?')) {
-        setLoading(saveBtn, true);
-        try {
-          const res = await fetch('/api/subjects/' + id, { method: 'DELETE', credentials: 'include' });
-          if (res.status === 401) { window.location.href = '/login.html'; return; }
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.message || 'Delete failed.');
-          }
-          const data = await res.json();
-          showMessage(data.message || 'Subject deleted successfully.', 'success');
-          loadSubjects();
-        } catch (err) {
-          showMessage(err.message, 'error');
-          console.error(err);
-        } finally {
-          setLoading(saveBtn, false);
-        }
-      }
-    }
-
-    // Edit subject handler
-    const editBtn = e.target.closest('.edit-subject');
-    if (editBtn) {
-      const id = editBtn.dataset.id;
-      const subject = subjects.find(s => s.id == id);
-      if (subject) {
-        currentEditId = id;
-        semesterSelect.value = subject.semester_id;
-        subjectCodeInput.value = subject.subject_code;
-        subjectNameInput.value = subject.subject_name;
-        creditsInput.value = subject.credits;
-        maxInternalInput.value = subject.max_internal_marks;
-        maxExternalInput.value = subject.max_external_marks;
-        totalMaximumInput.value = subject.total_maximum_marks;
-        saveBtn.textContent = 'Update Subject';
-        semesterSelect.dispatchEvent(new Event('change'));
-      }
-    }
-  });
-  
-  if (dbDisabled && dbStatusBanner) {
-    dbStatusBanner.style.display = 'block';
-  }
-  loadSemesters();
-  loadSubjects();
-});
-function validateForm() {
-    clearErrors();
-    let valid = true;
-    
-    if (!subjectCodeInput.value.trim()) {
-      errEls.subjectCode.textContent = 'Subject code is required.';
-      valid = false;
-    }
-    
-    if (!subjectNameInput.value.trim()) {
-      errEls.subjectName.textContent = 'Subject name is required.';
-      valid = false;
-    }
-    
-    if (!semesterSelect.value) {
-      errEls.subjectCode.textContent = 'Semester is required.';
-      valid = false;
-    }
-    
-    if (!creditsInput.value || isNaN(creditsInput.value) || creditsInput.value < 1 || creditsInput.value > 10) {
-      errEls.credits.textContent = 'Valid credits is required (1-10).';
-      valid = false;
-    }
-    
-    if (!maxInternalInput.value || isNaN(maxInternalInput.value) || maxInternalInput.value < 0 || maxInternalInput.value > 100) {
-      errEls.maxInternal.textContent = 'Valid max internal marks is required (0-100).';
-      valid = false;
-    }
-    
-    if (!maxExternalInput.value || isNaN(maxExternalInput.value) || maxExternalInput.value < 0 || maxExternalInput.value > 100) {
-      errEls.maxExternal.textContent = 'Valid max external marks is required (0-100).';
-      valid = false;
-    }
-    
-    if (!totalMaximumInput.value || isNaN(totalMaximumInput.value) || totalMaximumInput.value < 0 || totalMaximumInput.value > 200) {
-      errEls.totalMaximum.textContent = 'Valid total maximum marks is required (0-200).';
-      valid = false;
-    }
-    
-    return valid;
+  function clearErrors() {
+    if (errSubjectCode) errSubjectCode.textContent = '';
+    if (errSubjectName) errSubjectName.textContent = '';
+    if (errSubjectSemester) errSubjectSemester.textContent = '';
+    if (errSubjectCredits) errSubjectCredits.textContent = '';
+    if (errSubjectStatus) errSubjectStatus.textContent = '';
+    if (pageMessage) pageMessage.style.display = 'none';
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    clearErrors();
-    
-    if (!validateForm()) return;
-    
-    setLoading(saveBtn, true);
-    
-    const payload = {
-      semester_id: parseInt(semesterSelect.value),
-      subject_code: subjectCodeInput.value.trim(),
-      subject_name: subjectNameInput.value.trim(),
-      credits: parseInt(creditsInput.value),
-      max_internal_marks: parseInt(maxInternalInput.value),
-      max_external_marks: parseInt(maxExternalInput.value),
-      total_maximum_marks: parseInt(totalMaximumInput.value)
-    };
-    
-    try {
-      const res = await fetch('/api/subjects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include'
-      });
-      
-      if (res.status === 401) { window.location.href = '/login.html'; return; }
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Failed to create subject.');
-      }
-      
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Operation failed.');
-      
-      showMessage(data.message || 'Subject created successfully.', 'success');
-      resetForm();
-      loadSubjects();
-    } catch (err) {
-      showMessage(err.message, 'error');
-      console.error(err);
-    } finally {
-      setLoading(saveBtn, false);
-    }
-  }
-
-  function resetForm() {
-    subjectForm.reset();
-    saveBtn.textContent = 'Add Subject';
-    clearErrors();
-  }
-async function loadSemesters() {
-    clearErrors();
+  async function loadSemesters() {
     try {
       const res = await fetch('/api/semesters', { credentials: 'include' });
-      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      if (res.status === 401) { window.location.href = '/login'; return; }
       if (!res.ok) throw new Error('Failed to load semesters.');
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed to load semesters.');
-      
-      semesterSelect.innerHTML = '<option value="">Select a semester...</option>';
-      data.data.forEach(sem => {
-        const option = document.createElement('option');
-        option.value = sem.id;
-        option.textContent = sem.semester_number + ' - ' + sem.semester_name;
-        semesterSelect.appendChild(option);
-      });
+
+      semesters = data.data || [];
+      if (subjectSemester) {
+        subjectSemester.innerHTML = '<option value="">Select a semester...</option>';
+        semesters.forEach((s) => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          const bLabel = s.batch_name ? ` (${s.batch_name})` : '';
+          opt.textContent = `${s.semester_name} - Sem ${s.semester_number}${bLabel}`;
+          subjectSemester.appendChild(opt);
+        });
+      }
     } catch (err) {
-      showMessage(err.message, 'error');
       console.error(err);
+      showMessage('Could not load semesters.', 'error');
     }
   }
 
-  async function loadSubjects(semesterId = '', search = '') {
-    clearErrors();
+  async function loadSubjects(search = '') {
+    if (!subjectsTableBody) return;
+    subjectsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading subjects...</td></tr>';
     try {
       const params = new URLSearchParams();
-      if (semesterId) params.set('semester_id', semesterId);
       if (search) params.set('search', search);
-      const res = await fetch('/api/subjects?' + params.toString(), { credentials: 'include' });
-      if (res.status === 401) { window.location.href = '/login.html'; return; }
+
+      const res = await fetch(`/api/subjects?${params.toString()}`, { credentials: 'include' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
       if (!res.ok) throw new Error('Failed to load subjects.');
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed to load subjects.');
+
       subjects = data.data || [];
-      renderTable(subjects, data.counts);
+      renderSubjects(subjects);
     } catch (err) {
-      subjectsTableBody.innerHTML = '<tr><td colspan="8" class="empty-row">Error loading subjects.</td></tr>';
+      subjectsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Error loading subjects.</td></tr>';
       showMessage(err.message, 'error');
       console.error(err);
     }
   }
 
-  function renderTable(list) {
-    subjectsTableBody.innerHTML = '';
+  function renderSubjects(list) {
+    if (!subjectsTableBody) return;
     if (!list || list.length === 0) {
-      subjectsTableBody.innerHTML = '<tr><td colspan="8" class="empty-row">No subjects found.</td></tr>';
+      subjectsTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">No subjects found.</td></tr>';
       return;
     }
-    list.forEach(s => {
+    subjectsTableBody.innerHTML = '';
+    list.forEach((sub) => {
       const tr = document.createElement('tr');
-      const statusClass = (s.status === 'Active') ? 'active' : 'inactive';
-      const statusText = s.status || '-';
-      const cells = [
-        s.subject_code || '-',
-        s.subject_name || '-',
-        s.semester_number || '-',
-        s.max_internal_marks || '-',
-        s.max_external_marks || '-',
-        s.total_maximum_marks || '-',
-        s.credits || '-',
-        '<span class="status ' + statusClass + '">' + statusText + '</span>'
-      ];
-      const actions = [
-        '<button class="btn btn-link text-primary btn-sm edit-subject" data-id="' + s.id + '">Edit</button>',
-        '<button class="btn btn-link text-danger btn-sm delete-subject" data-id="' + s.id + '">Delete</button>'
-      ];
-      tr.innerHTML = '<td>' + cells.join('</td><td>') + '</td><td>' + actions.join('</td></tr><tr>') + '</td>';
+      const statusClass = (sub.status === 'Active') ? 'active' : 'inactive';
+      const semLabel = sub.semester_name ? `${sub.semester_name} (Sem ${sub.semester_number})` : (sub.semester_id || '—');
+      const bLabel = sub.batch_name ? ` - ${sub.batch_name}` : '';
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(sub.subject_code)}</strong></td>
+        <td>${escapeHtml(sub.subject_name)}</td>
+        <td>${escapeHtml(semLabel + bLabel)}</td>
+        <td>${sub.credits || 4}</td>
+        <td><span class="status-badge ${statusClass}">${sub.status}</span></td>
+        <td>
+          <button class="btn btn-link text-primary btn-sm edit-subject" data-id="${sub.id}">Edit</button>
+          <button class="btn btn-link text-danger btn-sm delete-subject" data-id="${sub.id}" style="color:#dc2626; margin-left:8px;">Delete</button>
+        </td>
+      `;
       subjectsTableBody.appendChild(tr);
+    });
+
+    subjectsTableBody.querySelectorAll('.edit-subject').forEach((btn) => {
+      btn.addEventListener('click', () => openEditForm(btn.dataset.id));
+    });
+    subjectsTableBody.querySelectorAll('.delete-subject').forEach((btn) => {
+      btn.addEventListener('click', () => deleteSubject(btn.dataset.id));
     });
   }
 
-  function validateForm() {
+  function showAddForm() {
     clearErrors();
-    let valid = true;
-    
-    if (!subjectCodeInput.value.trim()) {
-      errEls.subjectCode.textContent = 'Subject code is required.';
-      valid = false;
-    }
-    
-    if (!subjectNameInput.value.trim()) {
-      errEls.subjectName.textContent = 'Subject name is required.';
-      valid = false;
-    }
-    
-    if (!semesterSelect.value) {
-      errEls.subjectCode.textContent = 'Semester is required.';
-      valid = false;
-    }
-    
-    if (!creditsInput.value || isNaN(creditsInput.value) || creditsInput.value < 1 || creditsInput.value > 10) {
-      errEls.credits.textContent = 'Valid credits is required (1-10).';
-      valid = false;
-    }
-    
-    if (!maxInternalInput.value || isNaN(maxInternalInput.value) || maxInternalInput.value < 0 || maxInternalInput.value > 100) {
-      errEls.maxInternal.textContent = 'Valid max internal marks is required (0-100).';
-      valid = false;
-    }
-    
-    if (!maxExternalInput.value || isNaN(maxExternalInput.value) || maxExternalInput.value < 0 || maxExternalInput.value > 100) {
-      errEls.maxExternal.textContent = 'Valid max external marks is required (0-100).';
-      valid = false;
-    }
-    
-    if (!totalMaximumInput.value || isNaN(totalMaximumInput.value) || totalMaximumInput.value < 0 || totalMaximumInput.value > 200) {
-      errEls.totalMaximum.textContent = 'Valid total maximum marks is required (0-200).';
-      valid = false;
-    }
-    
-    return valid;
+    editId = null;
+    subjectForm.reset();
+    subjectId.value = '';
+    subjectStatus.value = 'Active';
+    subjectCredits.value = '4';
+    const formHeader = addSubjectForm.querySelector('.card-header h3');
+    if (formHeader) formHeader.textContent = 'Add Subject';
+    if (saveSubjectBtn) saveSubjectBtn.textContent = 'Save Subject';
+    addSubjectForm.style.display = 'block';
+    addSubjectForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  function openEditForm(id) {
+    const sub = subjects.find((x) => x.id == id);
+    if (!sub) return;
+    clearErrors();
+    editId = sub.id;
+    subjectId.value = sub.id;
+    subjectCode.value = sub.subject_code || '';
+    subjectName.value = sub.subject_name || '';
+    subjectSemester.value = sub.semester_id || '';
+    subjectCredits.value = sub.credits || '4';
+    subjectStatus.value = sub.status || 'Active';
+    const formHeader = addSubjectForm.querySelector('.card-header h3');
+    if (formHeader) formHeader.textContent = 'Edit Subject';
+    if (saveSubjectBtn) saveSubjectBtn.textContent = 'Update Subject';
+    addSubjectForm.style.display = 'block';
+    addSubjectForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function hideForm() {
+    if (addSubjectForm) addSubjectForm.style.display = 'none';
+    editId = null;
+    if (subjectForm) subjectForm.reset();
+    clearErrors();
+  }
+
+  async function deleteSubject(id) {
+    if (!confirm('Are you sure you want to delete this subject?')) return;
+    try {
+      const res = await fetch(`/api/subjects/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed to delete subject.');
+      showMessage(data.message || 'Subject deleted.', 'success');
+      loadSubjects(subjectSearch ? subjectSearch.value.trim() : '');
+    } catch (err) {
+      showMessage(err.message, 'error');
+    }
+  }
+
+  if (addSubjectBtn) addSubjectBtn.addEventListener('click', showAddForm);
+  if (cancelSubjectBtn) cancelSubjectBtn.addEventListener('click', hideForm);
+
+  if (subjectSearch) {
+    subjectSearch.addEventListener('input', () => {
+      clearTimeout(window._subjectSearchTimer);
+      window._subjectSearchTimer = setTimeout(() => {
+        loadSubjects(subjectSearch.value.trim());
+      }, 300);
+    });
+  }
+
+  if (subjectForm) {
+    subjectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const codeVal = subjectCode.value.trim().toUpperCase();
+      const nameVal = subjectName.value.trim();
+      const semVal = parseInt(subjectSemester.value, 10);
+      const creditsVal = parseInt(subjectCredits.value, 10) || 4;
+      const statusVal = subjectStatus.value;
+
+      let valid = true;
+      if (!codeVal) {
+        if (errSubjectCode) errSubjectCode.textContent = 'Subject code is required.';
+        valid = false;
+      }
+      if (!nameVal) {
+        if (errSubjectName) errSubjectName.textContent = 'Subject name is required.';
+        valid = false;
+      }
+      if (!semVal || isNaN(semVal)) {
+        if (errSubjectSemester) errSubjectSemester.textContent = 'Semester is required.';
+        valid = false;
+      }
+      if (creditsVal < 1 || creditsVal > 10) {
+        if (errSubjectCredits) errSubjectCredits.textContent = 'Credits must be between 1 and 10.';
+        valid = false;
+      }
+      if (!valid) return;
+
+      const payload = {
+        subject_code: codeVal,
+        subject_name: nameVal,
+        semester_id: semVal,
+        credits: creditsVal,
+        status: statusVal
+      };
+
+      saveSubjectBtn.disabled = true;
+      saveSubjectBtn.textContent = 'Saving...';
+      try {
+        const isEdit = !!editId;
+        const url = isEdit ? `/api/subjects/${editId}` : '/api/subjects';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          credentials: 'include'
+        });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        if (!data.success) {
+          if (data.errors && data.errors.length) {
+            throw new Error(data.errors.map(err => err.msg).join(', '));
+          }
+          throw new Error(data.message || 'Operation failed.');
+        }
+
+        showMessage(data.message || (isEdit ? 'Subject updated.' : 'Subject created.'), 'success');
+        hideForm();
+        loadSubjects(subjectSearch ? subjectSearch.value.trim() : '');
+      } catch (err) {
+        showMessage(err.message, 'error');
+      } finally {
+        saveSubjectBtn.disabled = false;
+        saveSubjectBtn.textContent = editId ? 'Update Subject' : 'Save Subject';
+      }
+    });
+  }
+
+  loadSemesters();
+  loadSubjects();
+});
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

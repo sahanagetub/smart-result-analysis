@@ -1,0 +1,48 @@
+<div id="dbStatus" class="status-banner" style="display:none;"></div>
+<div id="dashboardError" class="status-banner status-error" style="display:none;"></div>
+
+<div class="cards-grid">
+  <div class="card stat-card">
+    <h3>Total Students</h3>
+    <p class="stat-value" id="totalStudents">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Results</h3>
+    <p class="stat-value" id="totalResults">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Passed</h3>
+    <p class="stat-value" id="totalPassed">-</p>
+  </div>
+  <div class="card stat-card">
+    <h3>Total Failed</h3>
+    <p class="stat-value" id="totalFailed">-</p>
+  </div>
+</div>
+
+<div class="overview-grid">
+  <div class="card overview-card">
+    <h3>Academic Overview</h3>
+    <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+    <p class="stat-value" id="overallPassPercentage">-</p>
+  </div>
+  <div class="card overview-card">
+    <h3>Average Marks</h3>
+    <p class="stat-value" id="averageMarks">-</p>
+  </div>
+  <div class="card overview-card">
+    <h3>Highest Marks</h3>
+    <p class="stat-value" id="highestMarks">-</p>
+  </div>
+  <div class="card overview-card">
+    <h3>Lowest Marks</h3>
+    <p class="stat-value" id="lowestMarks">-</p>
+  </div>
+</div>
+
+<div class="placeholder-box">
+  <p>Additional analytics and charts will be available in the next phase.</p>
+</div>
+
+<script src="/vendor/chart.js/chart.umd.js"></script>
+<script src="/js/dashboard.js"></script>

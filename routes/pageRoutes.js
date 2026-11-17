@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const path = require('path');
+
+router.get('/', (req, res) => {
+  if (req.session && req.session.user) return res.redirect('/dashboard');
+  return res.redirect('/login');
+});
 
 // Helper: redirect unauthenticated to login
 function guestOnly(req, res, next) {
@@ -13,7 +18,7 @@ function guestOnly(req, res, next) {
 
 // Login page (guest only)
 router.get('/login', guestOnly, (req, res) => {
-  res.render('auth/login', { title: 'Clerk Login', error: req.query.error });
+  res.redirect('/login.html');
 });
 
 // Dashboard
@@ -59,6 +64,15 @@ router.get('/results/upload', requireAuth, (req, res) => {
   res.render('results/upload', { title: 'Upload Result', active: 'results' });
 });
 
+// Test data generator (admin only)
+router.get('/generator', requireAuth, requireAdmin, (req, res) => {
+  res.render('generator/index', {
+    title: 'Test Data Generator',
+    active: 'generator',
+    csrfToken: req.session && req.session._csrf
+  });
+});
+
 // Analytics
 router.get('/analytics', requireAuth, (req, res) => {
   res.render('analytics/index', { title: 'Analytics', active: 'analytics' });
@@ -67,14 +81,6 @@ router.get('/analytics', requireAuth, (req, res) => {
 // Reports
 router.get('/reports', requireAuth, (req, res) => {
   res.render('reports/index', { title: 'Reports', active: 'reports' });
-});
-
-// Root redirect
-router.get('/', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.redirect('/dashboard');
-  }
-  res.redirect('/login');
 });
 
 module.exports = router;

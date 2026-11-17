@@ -1,48 +1,77 @@
-<div id="dbStatus" class="status-banner" style="display:none;"></div>
-<div id="dashboardError" class="status-banner status-error" style="display:none;"></div>
+<% layout('../layouts/main') -%>
+<link rel="stylesheet" href="/css/dashboard.css">
 
-<div class="cards-grid">
-  <div class="card stat-card">
-    <h3>Total Students</h3>
-    <p class="stat-value" id="totalStudents">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Total Results</h3>
-    <p class="stat-value" id="totalResults">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Total Passed</h3>
-    <p class="stat-value" id="totalPassed">-</p>
-  </div>
-  <div class="card stat-card">
-    <h3>Total Failed</h3>
-    <p class="stat-value" id="totalFailed">-</p>
-  </div>
-</div>
+<section class="dashboard" aria-label="Academic performance dashboard">
+  <div id="dashboardLoading" class="dashboard-notice" role="status">Loading dashboard data…</div>
+  <div id="dashboardError" class="dashboard-notice dashboard-error" role="alert" hidden></div>
+  <div id="dashboardEmpty" class="dashboard-notice" role="status" hidden>No results match the selected filters.</div>
 
-<div class="overview-grid">
-  <div class="card overview-card">
-    <h3>Academic Overview</h3>
-    <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
-    <p class="stat-value" id="overallPassPercentage">-</p>
-  </div>
-  <div class="card overview-card">
-    <h3>Average Marks</h3>
-    <p class="stat-value" id="averageMarks">-</p>
-  </div>
-  <div class="card overview-card">
-    <h3>Highest Marks</h3>
-    <p class="stat-value" id="highestMarks">-</p>
-  </div>
-  <div class="card overview-card">
-    <h3>Lowest Marks</h3>
-    <p class="stat-value" id="lowestMarks">-</p>
-  </div>
-</div>
+  <section class="dashboard-filters card" aria-label="Dashboard filters">
+    <div class="dashboard-filter">
+      <label for="filterBatch">Academic batch</label>
+      <select id="filterBatch"><option value="">All batches</option></select>
+    </div>
+    <div class="dashboard-filter">
+      <label for="filterSemester">Semester</label>
+      <select id="filterSemester"><option value="">All semesters</option></select>
+    </div>
+    <div class="dashboard-filter">
+      <label for="filterSession">Examination session</label>
+      <select id="filterSession"><option value="">All sessions</option></select>
+    </div>
+    <div class="dashboard-filter">
+      <label for="filterSubject">Subject</label>
+      <select id="filterSubject"><option value="">All subjects</option></select>
+    </div>
+    <div class="dashboard-filter-actions">
+      <button id="applyFilters" class="btn btn-primary" type="button">Apply filters</button>
+      <button id="resetFilters" class="btn btn-secondary" type="button">Reset</button>
+    </div>
+  </section>
 
-<div class="placeholder-box">
-  <p>Additional analytics and charts will be available in the next phase.</p>
-</div>
+  <section class="dashboard-stats" aria-label="Dashboard summary">
+    <article class="dashboard-stat card"><span>Total students</span><strong id="totalStudents">—</strong></article>
+    <article class="dashboard-stat card"><span>Batches</span><strong id="totalBatches">—</strong></article>
+    <article class="dashboard-stat card"><span>Semesters</span><strong id="totalSemesters">—</strong></article>
+    <article class="dashboard-stat card"><span>Subjects</span><strong id="totalSubjects">—</strong></article>
+    <article class="dashboard-stat card"><span>Exam sessions</span><strong id="totalExamSessions">—</strong></article>
+    <article class="dashboard-stat card"><span>Result records</span><strong id="totalResults">—</strong></article>
+    <article class="dashboard-stat card"><span>Pass rate</span><strong id="passPercentage">—</strong></article>
+    <article class="dashboard-stat card"><span>Failure rate</span><strong id="failurePercentage">—</strong></article>
+    <article class="dashboard-stat card"><span>Average marks</span><strong id="averageMarks">—</strong></article>
+  </section>
+
+  <section class="dashboard-panel card">
+    <div class="dashboard-panel-heading">
+      <div>
+        <h2>Top-performing students</h2>
+        <p>Ranked by average percentage across the filtered result records. Tied averages share rank.</p>
+      </div>
+      <label class="topper-limit" for="topperLimit">Show
+        <select id="topperLimit"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option></select>
+      </label>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table id="topperTable" class="dashboard-table">
+        <thead><tr><th>Rank</th><th>Student</th><th>Batch</th><th>Average percentage</th><th>Results</th></tr></thead>
+        <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-panel card">
+    <h2>Recent examination summary</h2>
+    <div id="recentExamsList" class="recent-exams"><p>Loading…</p></div>
+  </section>
+
+  <section class="dashboard-charts" aria-label="Performance charts">
+    <article class="dashboard-chart card"><h2>Pass and fail results</h2><div class="chart-wrap"><canvas id="passFailChart" aria-label="Pass and fail result counts"></canvas></div></article>
+    <article class="dashboard-chart card"><h2>Grade distribution</h2><div class="chart-wrap"><canvas id="gradeDistributionChart" aria-label="Stored result grade counts"></canvas></div></article>
+    <article class="dashboard-chart card"><h2>Semester-wise pass rate</h2><div class="chart-wrap"><canvas id="semesterChart" aria-label="Pass percentage by semester"></canvas></div></article>
+    <article class="dashboard-chart card"><h2>Examination-wise pass rate</h2><div class="chart-wrap"><canvas id="examWiseChart" aria-label="Pass percentage by examination session"></canvas></div></article>
+    <article class="dashboard-chart card dashboard-chart-wide"><h2>Subject-wise average percentage</h2><div class="chart-wrap chart-wrap-tall"><canvas id="subjectChart" aria-label="Average percentage by subject"></canvas></div></article>
+  </section>
+</section>
 
 <script src="/vendor/chart.js/chart.umd.js"></script>
 <script src="/js/dashboard.js"></script>

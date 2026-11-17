@@ -43,7 +43,7 @@ async function addStudent(req, res, next) {
 
 async function listStudents(req, res, next) {
   try {
-    const batchId = req.params.batchId || '';
+    const batchId = req.params.batchId || req.query.batchId || req.query.batch_id || '';
     const search = req.query.search || '';
     const students = await studentService.listStudentsService(batchId, search);
     const counts = await studentService.getCountsByBatchService();

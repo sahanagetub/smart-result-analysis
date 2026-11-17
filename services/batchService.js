@@ -47,6 +47,23 @@ async function editBatchService(id, data) {
 }
 
 async function removeBatchService(id) {
+  const batch = await batchModel.getBatchById(id);
+  if (!batch) {
+    const err = new Error('Batch not found.');
+    err.status = 404;
+    throw err;
+  }
+
+  const { studentsCount, semestersCount } = await batchModel.getRelatedCounts(id);
+  if (studentsCount > 0 || semestersCount > 0) {
+    const reasons = [];
+    if (studentsCount > 0) reasons.push(`${studentsCount} student(s)`);
+    if (semestersCount > 0) reasons.push(`${semestersCount} semester(s)`);
+    const err = new Error(`Cannot delete batch because it has related records: ${reasons.join(' and ')}. Please remove or reassign them first.`);
+    err.status = 400;
+    throw err;
+  }
+
   return batchModel.deleteBatch(id);
 }
 

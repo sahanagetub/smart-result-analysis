@@ -1,167 +1,167 @@
 const examSessionModel = require('../models/examSessionModel');
+const semesterModel = require('../models/semesterModel');
 
 async function initExamSessionsTable() {
   await examSessionModel.createExamSessionsTable();
 }
 
 async function createExamSessionService(data) {
-  // Validate semester existence
-  const semesterCheck = await require('../config/db').getPool().execute(
-    'SELECT id FROM semesters WHERE id = ?',
-    [data.semester_id]
-  );
-  if (semesterCheck[0].length === 0) {
-    throw new Error('Semester not found.');
+  const { semester_id, session_name, start_date, end_date, status } = data;
+
+  if (!semester_id || !session_name) {
+    const err = new Error('Semester ID and session name are required.');
+    err.status = 400;
+    throw err;
   }
 
-  // Check for duplicate session name within the same semester
-  const exists = await examSessionModel.examSessionExists(data.semester_id, data.session_name);
+  // Validate semester exists
+  const semester = await semesterModel.getSemesterById(semester_id);
+  if (!semester) {
+    const err = new Error('Selected semester does not exist.');
+    err.status = 400;
+    throw err;
+  }
+
+  // Validate dates if both provided
+  if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+    const err = new Error('End date cannot be earlier than start date.');
+    err.status = 400;
+    throw err;
+  }
+
+  // Check duplicate session name within same semester
+  const exists = await examSessionModel.examSessionExists(semester_id, String(session_name).trim());
   if (exists) {
-    throw new Error('Exam session name already exists in this semester.');
+    const err = new Error('Exam session name already exists in this semester.');
+    err.status = 409;
+    throw err;
   }
 
-  // Create the exam session
-  const result = await examSessionModel.createExamSession(data);
-  return { success: true, data: result, message: 'Exam session created successfully.' };
+  const id = await examSessionModel.createExamSession({
+    semester_id,
+    session_name: String(session_name).trim(),
+    start_date: start_date || null,
+    end_date: end_date || null,
+    status: status || 'Active'
+  });
+
+  const created = await examSessionModel.getExamSessionById(id);
+  return { success: true, data: created, message: 'Exam session created successfully.' };
 }
 
-async function getAllExamSessionsService() {
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    return { success: false, message: 'Database pool unavailable.' };
-  }
-  const [rows] = await pool.execute(
-    'SELECT es.id, es.session_name, es.start_date, es.end_date, es.status, s.semester_number, s.semester_name FROM exam_sessions es JOIN semesters s ON es.semester_id = s.id ORDER BY es.id'
-  );
+async function getAllExamSessionsService(search = '', semesterId = '') {
+  const rows = await examSessionModel.getAllExamSessions(search, semesterId);
   return { success: true, data: rows };
 }
 
 async function getExamSessionsBySemesterService(semesterId, search = '') {
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    return { success: false, message: 'Database pool unavailable.' };
-  }
-  let sql = 'SELECT es.id, es.session_name, es.start_date, es.end_date, es.status, s.semester_number, s.semester_name FROM exam_sessions es JOIN semesters s ON es.semester_id = s.id WHERE es.semester_id = ?';
-  const params = [semesterId];
-  if (search) {
-    sql += ' AND es.session_name LIKE ?';
-    params.push('%' + search + '%');
-  }
-  sql += ' ORDER BY es.id';
-  const [rows] = await pool.execute(sql, params);
+  const rows = await examSessionModel.getExamSessionsBySemester(semesterId, search);
   return { success: true, data: rows };
 }
 
 async function getExamSessionByIdService(id) {
-  const result = await examSessionModel.getExamSessionById(id);
-  if (!result) {
-    return { success: false, message: 'Exam session not found.' };
+  const session = await examSessionModel.getExamSessionById(id);
+  if (!session) {
+    const err = new Error('Exam session not found.');
+    err.status = 404;
+    throw err;
   }
-  return { success: true, data: result };
+  return { success: true, data: session };
 }
 
 async function updateExamSessionService(id, data) {
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    throw new Error('Database pool unavailable.');
-  }
-
-  // Check if exam session exists
   const existing = await examSessionModel.getExamSessionById(id);
   if (!existing) {
-    throw new Error('Exam session not found.');
+    const err = new Error('Exam session not found.');
+    err.status = 404;
+    throw err;
   }
 
-  // Build update query
-  let sql = 'UPDATE exam_sessions SET ';
-  const updates = [];
-  const params = [];
-
-  if (data.session_name !== undefined) {
-    updates.push('session_name = ?');
-    params.push(data.session_name);
-  }
-  if (data.start_date !== undefined) {
-    updates.push('start_date = ?');
-    params.push(data.start_date);
-  }
-  if (data.end_date !== undefined) {
-    updates.push('end_date = ?');
-    params.push(data.end_date);
-  }
-  if (data.status !== undefined) {
-    updates.push('status = ?');
-    params.push(data.status);
+  const semId = data.semester_id || existing.semester_id;
+  if (data.session_name) {
+    const nameTrim = String(data.session_name).trim();
+    const exists = await examSessionModel.examSessionExists(semId, nameTrim, id);
+    if (exists) {
+      const err = new Error('Exam session name already exists in this semester.');
+      err.status = 409;
+      throw err;
+    }
+    data.session_name = nameTrim;
   }
 
-  if (updates.length === 0) {
-    throw new Error('No fields to update.');
+  const sDate = data.start_date !== undefined ? data.start_date : existing.start_date;
+  const eDate = data.end_date !== undefined ? data.end_date : existing.end_date;
+  if (sDate && eDate && new Date(eDate) < new Date(sDate)) {
+    const err = new Error('End date cannot be earlier than start date.');
+    err.status = 400;
+    throw err;
   }
 
-  sql += updates.join(', ') + ' WHERE id = ?';
-  params.push(id);
-
-  const [result] = await pool.execute(sql, params);
-
-  if (result.affectedRows === 0) {
-    throw new Error('Exam session update failed.');
+  const updated = await examSessionModel.updateExamSession(id, data);
+  if (!updated) {
+    const err = new Error('Exam session update failed.');
+    err.status = 400;
+    throw err;
   }
 
-  // Return updated exam session
-  const updated = await examSessionModel.getExamSessionById(id);
-  return { success: true, data: updated, message: 'Exam session updated successfully.' };
+  const result = await examSessionModel.getExamSessionById(id);
+  return { success: true, data: result, message: 'Exam session updated successfully.' };
 }
 
 async function deleteExamSessionService(id) {
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    throw new Error('Database pool unavailable.');
-  }
-
-  // Check if exam session exists
   const existing = await examSessionModel.getExamSessionById(id);
   if (!existing) {
-    throw new Error('Exam session not found.');
+    const err = new Error('Exam session not found.');
+    err.status = 404;
+    throw err;
   }
 
-  // Delete the exam session
-  const [result] = await pool.execute(
-    'DELETE FROM exam_sessions WHERE id = ?',
-    [id]
-  );
+  // Related record protection: check results
+  const resultsCount = await examSessionModel.countResultsForSession(id);
+  if (resultsCount > 0) {
+    const err = new Error(`Cannot delete exam session "${existing.session_name}": It has ${resultsCount} recorded student exam result(s). Please remove results first.`);
+    err.status = 400;
+    throw err;
+  }
 
-  if (result.affectedRows === 0) {
-    throw new Error('Exam session delete failed.');
+  const deleted = await examSessionModel.deleteExamSession(id);
+  if (!deleted) {
+    const err = new Error('Exam session delete failed.');
+    err.status = 500;
+    throw err;
   }
 
   return { success: true, message: 'Exam session deleted successfully.' };
 }
 
 async function updateExamSessionStatusService(id, status) {
-  const pool = require('../config/db').getPool();
-  if (!pool) {
-    throw new Error('Database pool unavailable.');
-  }
-
-  // Check if exam session exists
   const existing = await examSessionModel.getExamSessionById(id);
   if (!existing) {
-    throw new Error('Exam session not found.');
+    const err = new Error('Exam session not found.');
+    err.status = 404;
+    throw err;
   }
 
-  // Update the status
-  const [result] = await pool.execute(
-    'UPDATE exam_sessions SET status = ? WHERE id = ?',
-    [status, id]
-  );
-
-  if (result.affectedRows === 0) {
-    throw new Error('Exam session status update failed.');
+  if (!['Active', 'Inactive'].includes(status)) {
+    const err = new Error('Status must be Active or Inactive.');
+    err.status = 400;
+    throw err;
   }
 
-  // Return updated exam session
-  const updated = await examSessionModel.getExamSessionById(id);
-  return { success: true, data: updated, message: 'Exam session status updated successfully.' };
+  const updated = await examSessionModel.updateExamSessionStatus(id, status);
+  if (!updated) {
+    const err = new Error('Exam session status update failed.');
+    err.status = 500;
+    throw err;
+  }
+
+  const result = await examSessionModel.getExamSessionById(id);
+  return { success: true, data: result, message: `Exam session status updated to ${status}.` };
+}
+
+async function getExamSessionStatsService() {
+  const stats = await examSessionModel.getExamSessionStats();
+  return { success: true, data: stats };
 }
 
 module.exports = {
@@ -172,6 +172,6 @@ module.exports = {
   getExamSessionByIdService,
   updateExamSessionService,
   deleteExamSessionService,
-  updateExamSessionStatusService
+  updateExamSessionStatusService,
+  getExamSessionStatsService
 };
- 

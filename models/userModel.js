@@ -98,35 +98,91 @@ async function getUserByUsername(username) {
   return rows.length ? rows[0] : null;
 }
 
-async function updateUser(id, data) {
-  if (isDbDisabled()) {
-    throw new Error('Database integration is disabled.');
-  }
-  const pool = getPool();
-  if (!pool) throw new Error('Database pool unavailable.');
-  const fields = [];
-  const params = [];
-  if (data.full_name !== undefined) { fields.push('full_name = ?'); params.push(data.full_name); }
-  if (data.email !== undefined) { fields.push('email = ?'); params.push(data.email); }
-  if (data.role !== undefined) { fields.push('role = ?'); params.push(data.role); }
-  if (data.status !== undefined) { fields.push('status = ?'); params.push(data.status); }
-  if (fields.length === 0) return false;
-  params.push(id);
-  const [result] = await pool.execute(
-    `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
-    params
-  );
-  return result.affectedRows > 0;
+function createUserError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
 }
 
-async function deleteUser(id) {
-  if (isDbDisabled()) {
-    throw new Error('Database integration is disabled.');
+function assertAdminMutationAllowed(target, requesterUsername, activeAdminCount, mutation) {
+  if (String(target.username).toLowerCase() === 'admin' && mutation.kind === 'delete') {
+    throw createUserError('The bootstrap administrator account is protected.', 409);
   }
+  if (String(target.username).toLowerCase() === String(requesterUsername || '').toLowerCase() &&
+      (mutation.kind === 'delete' || mutation.data?.role !== undefined || mutation.data?.status !== undefined)) {
+    throw createUserError('You cannot delete or change the role/status of your own administrator account.', 409);
+  }
+  const removesActiveAdmin = target.role === 'Admin' && target.status === 'Active' &&
+    (mutation.kind === 'delete' || (mutation.data?.role !== undefined && mutation.data.role !== 'Admin') || mutation.data?.status === 'Inactive');
+  if (removesActiveAdmin && activeAdminCount <= 1) {
+    throw createUserError('At least one active administrator must remain.', 409);
+  }
+}
+
+async function withUserMutation(id, requesterUsername, mutate) {
+  if (isDbDisabled()) throw createUserError('Database integration is disabled.', 503);
   const pool = getPool();
-  if (!pool) throw new Error('Database pool unavailable.');
-  const [result] = await pool.execute(`DELETE FROM users WHERE id = ?`, [id]);
-  return result.affectedRows > 0;
+  if (!pool) throw createUserError('Database pool unavailable.', 503);
+  const connection = await pool.getConnection();
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+    const [targetRows] = await connection.execute(
+      'SELECT id, username, role, status FROM users WHERE id = ? FOR UPDATE', [id]
+    );
+    const target = targetRows[0];
+    if (!target) throw createUserError('User not found.', 404);
+    const changesAdminAvailability = target.role === 'Admin' && target.status === 'Active' &&
+      (mutate.kind === 'delete' || (mutate.data?.role !== undefined && mutate.data.role !== 'Admin') || mutate.data?.status === 'Inactive');
+    let activeAdminCount = 0;
+    if (changesAdminAvailability) {
+      const [admins] = await connection.execute("SELECT id FROM users WHERE role = 'Admin' AND status = 'Active' FOR UPDATE");
+      activeAdminCount = admins.length;
+    }
+    assertAdminMutationAllowed(target, requesterUsername, activeAdminCount, mutate);
+
+    const result = await mutate.execute(connection, target);
+    await connection.commit();
+    transactionStarted = false;
+    return result;
+  } catch (error) {
+    if (transactionStarted) {
+      try { await connection.rollback(); } catch (rollbackError) { error.rollbackError = rollbackError; }
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function updateUser(id, data, requesterUsername) {
+  const allowed = ['full_name', 'email', 'role', 'status', 'password_hash'];
+  const fields = [];
+  const params = [];
+  for (const key of allowed) {
+    if (data[key] !== undefined) { fields.push(`${key} = ?`); params.push(data[key]); }
+  }
+  return withUserMutation(id, requesterUsername, {
+    kind: 'update', data,
+    async execute(connection, target) {
+      if (!fields.length) return target;
+      params.push(id);
+      await connection.execute(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, params);
+      return true;
+    }
+  });
+}
+
+async function deleteUser(id, requesterUsername) {
+  return withUserMutation(id, requesterUsername, {
+    kind: 'delete',
+    async execute(connection) {
+      const [result] = await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+      if (!result.affectedRows) throw createUserError('User not found.', 404);
+      return true;
+    }
+  });
 }
 
 async function countUsersByRole() {
@@ -155,5 +211,6 @@ module.exports = {
   getUserByUsername,
   updateUser,
   deleteUser,
-  countUsersByRole
+  countUsersByRole,
+  assertAdminMutationAllowed
 };

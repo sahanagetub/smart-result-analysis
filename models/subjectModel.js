@@ -38,25 +38,54 @@ async function createSubject(data) {
   if (isDbDisabled()) throw new Error('Database integration is disabled.');
   const pool = getPool();
   if (!pool) throw new Error('Database pool unavailable.');
-  const { semester_id, subject_code, subject_name, max_internal_marks, max_external_marks, total_maximum_marks, credits } = data;
+
+  const semester_id = parseInt(data.semester_id, 10);
+  const subject_code = String(data.subject_code).trim().toUpperCase();
+  const subject_name = String(data.subject_name).trim();
+  const max_internal = data.max_internal_marks !== undefined ? parseInt(data.max_internal_marks, 10) : 40;
+  const max_external = data.max_external_marks !== undefined ? parseInt(data.max_external_marks, 10) : 60;
+  const total_max = data.total_maximum_marks !== undefined ? parseInt(data.total_maximum_marks, 10) : (max_internal + max_external);
+  const credits = data.credits !== undefined ? parseInt(data.credits, 10) : 4;
+  const status = data.status || 'Active';
+
   const [result] = await pool.execute(
     'INSERT INTO subjects (semester_id, subject_code, subject_name, max_internal_marks, max_external_marks, total_maximum_marks, credits, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [semester_id, subject_code, subject_name, max_internal_marks, max_external_marks, total_maximum_marks, credits, data.status || 'Active']
+    [semester_id, subject_code, subject_name, max_internal, max_external, total_max, credits, status]
   );
   return result.insertId;
 }
 
-async function getAllSubjects(search = '') {
+async function getAllSubjects(search = '', semesterId = '') {
   if (isDbDisabled()) return [];
   const pool = getPool();
   if (!pool) return [];
-  let sql = `SELECT s.id, s.semester_id, s.subject_code, s.subject_name, s.max_internal_marks, s.max_external_marks, s.total_maximum_marks, s.credits, s.status, s.created_at, s.updated_at, sem.semester_number, sem.semester_name, b.batch_name FROM subjects s JOIN semesters sem ON s.semester_id = sem.id JOIN batches b ON sem.batch_id = b.id`;
+
+  let sql = `
+    SELECT s.id, s.semester_id, s.subject_code, s.subject_name,
+           s.max_internal_marks, s.max_external_marks, s.total_maximum_marks,
+           s.credits, s.status, s.created_at, s.updated_at,
+           sem.semester_number, sem.semester_name,
+           b.id AS batch_id, b.batch_name
+    FROM subjects s
+    JOIN semesters sem ON s.semester_id = sem.id
+    JOIN batches b ON sem.batch_id = b.id
+  `;
+  const conditions = [];
   const params = [];
-  if (search) {
-    sql += ` WHERE s.subject_code LIKE ? OR s.subject_name LIKE ? OR s.semester_id LIKE ?`;
-    params.push('%' + search + '%', '%' + search + '%', '%' + search + '%');
+
+  if (semesterId) {
+    conditions.push('s.semester_id = ?');
+    params.push(semesterId);
   }
-  sql += ` ORDER BY s.created_at DESC`;
+  if (search) {
+    conditions.push('(s.subject_code LIKE ? OR s.subject_name LIKE ? OR sem.semester_name LIKE ? OR b.batch_name LIKE ?)');
+    params.push('%' + search + '%', '%' + search + '%', '%' + search + '%', '%' + search + '%');
+  }
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ' ORDER BY sem.semester_number ASC, s.subject_code ASC';
+
   const [rows] = await pool.execute(sql, params);
   return rows;
 }
@@ -65,7 +94,17 @@ async function getSubjectById(id) {
   if (isDbDisabled()) return null;
   const pool = getPool();
   if (!pool) return null;
-  const [rows] = await pool.execute('SELECT s.id, s.semester_id, s.subject_code, s.subject_name, s.max_internal_marks, s.max_external_marks, s.total_maximum_marks, s.credits, s.status, s.created_at, s.updated_at FROM subjects s WHERE s.id = ?', [id]);
+  const [rows] = await pool.execute(
+    `SELECT s.id, s.semester_id, s.subject_code, s.subject_name,
+            s.max_internal_marks, s.max_external_marks, s.total_maximum_marks,
+            s.credits, s.status, s.created_at, s.updated_at,
+            sem.semester_number, sem.semester_name, b.id AS batch_id, b.batch_name
+     FROM subjects s
+     JOIN semesters sem ON s.semester_id = sem.id
+     JOIN batches b ON sem.batch_id = b.id
+     WHERE s.id = ?`,
+    [id]
+  );
   return rows.length ? rows[0] : null;
 }
 
@@ -73,18 +112,46 @@ async function updateSubject(id, data) {
   if (isDbDisabled()) throw new Error('Database integration is disabled.');
   const pool = getPool();
   if (!pool) throw new Error('Database pool unavailable.');
+
   const fields = [];
   const params = [];
-  if (data.semester_id !== undefined) { fields.push('semester_id = ?'); params.push(data.semester_id); }
-  if (data.subject_code !== undefined) { fields.push('subject_code = ?'); params.push(data.subject_code); }
-  if (data.subject_name !== undefined) { fields.push('subject_name = ?'); params.push(data.subject_name); }
-  if (data.max_internal_marks !== undefined) { fields.push('max_internal_marks = ?'); params.push(data.max_internal_marks); }
-  if (data.max_external_marks !== undefined) { fields.push('max_external_marks = ?'); params.push(data.max_external_marks); }
-  if (data.total_maximum_marks !== undefined) { fields.push('total_maximum_marks = ?'); params.push(data.total_maximum_marks); }
-  if (data.credits !== undefined) { fields.push('credits = ?'); params.push(data.credits); }
-  if (data.status !== undefined) { fields.push('status = ?'); params.push(data.status); }
+
+  if (data.semester_id !== undefined) {
+    fields.push('semester_id = ?');
+    params.push(parseInt(data.semester_id, 10));
+  }
+  if (data.subject_code !== undefined) {
+    fields.push('subject_code = ?');
+    params.push(String(data.subject_code).trim().toUpperCase());
+  }
+  if (data.subject_name !== undefined) {
+    fields.push('subject_name = ?');
+    params.push(String(data.subject_name).trim());
+  }
+  if (data.max_internal_marks !== undefined) {
+    fields.push('max_internal_marks = ?');
+    params.push(parseInt(data.max_internal_marks, 10));
+  }
+  if (data.max_external_marks !== undefined) {
+    fields.push('max_external_marks = ?');
+    params.push(parseInt(data.max_external_marks, 10));
+  }
+  if (data.total_maximum_marks !== undefined) {
+    fields.push('total_maximum_marks = ?');
+    params.push(parseInt(data.total_maximum_marks, 10));
+  }
+  if (data.credits !== undefined) {
+    fields.push('credits = ?');
+    params.push(parseInt(data.credits, 10));
+  }
+  if (data.status !== undefined) {
+    fields.push('status = ?');
+    params.push(data.status);
+  }
+
   if (fields.length === 0) return false;
   params.push(id);
+
   const [result] = await pool.execute(`UPDATE subjects SET ${fields.join(', ')} WHERE id = ?`, params);
   return result.affectedRows > 0;
 }
@@ -93,38 +160,62 @@ async function deleteSubject(id) {
   if (isDbDisabled()) throw new Error('Database integration is disabled.');
   const pool = getPool();
   if (!pool) throw new Error('Database pool unavailable.');
-  const [result] = await pool.execute(`DELETE FROM subjects WHERE id = ?`, [id]);
+
+  const [result] = await pool.execute('DELETE FROM subjects WHERE id = ?', [id]);
   return result.affectedRows > 0;
 }
 
 async function getSubjectsBySemester(semesterId) {
-  if (isDbDisabled()) return [];
-  const pool = getPool();
-  if (!pool) return [];
-  const [rows] = await pool.execute(`SELECT id, semester_id, subject_code, subject_name, max_internal_marks, max_external_marks, total_maximum_marks, credits, status FROM subjects WHERE semester_id = ? ORDER BY subject_code`, [semesterId]);
-  return rows;
+  return getAllSubjects('', semesterId);
 }
 
-async function checkSubjectCodeExists(semesterId, subjectCode) {
+async function checkSubjectCodeExists(semesterId, subjectCode, excludeId = null) {
   if (isDbDisabled()) return false;
   const pool = getPool();
   if (!pool) return false;
-  const [rows] = await pool.execute('SELECT COUNT(*) as count FROM subjects WHERE semester_id = ? AND subject_code = ?', [semesterId, subjectCode]);
-  return rows[0].count > 0;
+
+  let sql = 'SELECT id FROM subjects WHERE semester_id = ? AND subject_code = ?';
+  const params = [semesterId, String(subjectCode).trim().toUpperCase()];
+  if (excludeId) {
+    sql += ' AND id != ?';
+    params.push(excludeId);
+  }
+  const [rows] = await pool.execute(sql, params);
+  return rows.length > 0;
+}
+
+async function countResultsForSubject(subjectCode) {
+  if (isDbDisabled()) return 0;
+  const pool = getPool();
+  if (!pool) return 0;
+
+  const [rows] = await pool.execute(
+    'SELECT COUNT(*) AS cnt FROM results WHERE subject_code = ?',
+    [subjectCode]
+  );
+  return Number(rows[0]?.cnt || 0);
 }
 
 async function getSubjectsCount(search = '') {
   if (isDbDisabled()) return { total: 0, active: 0, inactive: 0 };
   const pool = getPool();
   if (!pool) return { total: 0, active: 0, inactive: 0 };
-  let sql = 'SELECT COUNT(*) as total, SUM(CASE WHEN status = \'Active\' THEN 1 ELSE 0 END) as active, SUM(CASE WHEN status = \'Inactive\' THEN 1 ELSE 0 END) as inactive FROM subjects';
+
+  let sql = `SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) AS active,
+                    SUM(CASE WHEN status = 'Inactive' THEN 1 ELSE 0 END) AS inactive
+             FROM subjects`;
   const params = [];
   if (search) {
-    sql += ` WHERE subject_code LIKE ? OR subject_name LIKE ?`;
+    sql += ' WHERE subject_code LIKE ? OR subject_name LIKE ?';
     params.push('%' + search + '%', '%' + search + '%');
   }
   const [rows] = await pool.execute(sql, params);
-  return { total: rows[0].total, active: rows[0].active, inactive: rows[0].inactive };
+  return {
+    total: Number(rows[0]?.total || 0),
+    active: Number(rows[0]?.active || 0),
+    inactive: Number(rows[0]?.inactive || 0)
+  };
 }
 
 module.exports = {
@@ -136,5 +227,6 @@ module.exports = {
   deleteSubject,
   getSubjectsBySemester,
   checkSubjectCodeExists,
+  countResultsForSubject,
   getSubjectsCount
-}; 
+};
