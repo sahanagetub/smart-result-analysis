@@ -1,20 +1,101 @@
 <% layout('../layouts/main') -%>
+<link rel="stylesheet" href="/css/reports.css">
 
-<div class="cards-grid">
-  <div class="card">
-    <h3 style="margin-top:0;">Generate Report</h3>
-    <div class="status-banner status-info">
-      <strong>Coming soon.</strong> Reports will be generated from uploaded result data once MySQL is enabled.
+<main class="reports-page" aria-labelledby="reportsTitle">
+  <header class="reports-intro"><h2 id="reportsTitle">Academic reports</h2><p>Generate and export student results, class summaries, subject comparisons, and individual performance.</p></header>
+  <nav class="report-tabs" role="tablist" aria-label="Choose a report">
+    <button type="button" role="tab" aria-selected="true" data-report-tab="consolidated">Consolidated</button>
+    <button type="button" role="tab" aria-selected="false" data-report-tab="class">Class result</button>
+    <button type="button" role="tab" aria-selected="false" data-report-tab="topper">Toppers</button>
+    <button type="button" role="tab" aria-selected="false" data-report-tab="failed">Failed students</button>
+    <button type="button" role="tab" aria-selected="false" data-report-tab="subject-wise">Subject-wise</button>
+    <button type="button" role="tab" aria-selected="false" data-report-tab="student">Individual student</button>
+  </nav>
+  <section class="card reports-filter-card" aria-label="Report options">
+    <div class="reports-type-picker">
+      <label>Report
+        <select id="reportType">
+          <option value="consolidated">Consolidated result</option>
+          <option value="class">Class result</option>
+          <option value="topper">Topper report</option>
+          <option value="failed">Failed students</option>
+          <option value="subject-wise">Subject-wise performance</option>
+          <option value="student">Individual student</option>
+        </select>
+      </label>
+      <label id="topperLimitWrap" hidden>Rankings
+        <select id="topperLimit"><option value="3">Top 3</option><option value="5" selected>Top 5</option><option value="10">Top 10</option></select>
+      </label>
+      <label id="failedSearchWrap" hidden>Search failed students
+        <input id="failedSearch" type="search" maxlength="80" placeholder="USN or student name">
+      </label>
+      <label id="subjectFilterWrap" hidden>Subject
+        <select id="reportSubject"><option value="">All subjects</option></select>
+      </label>
+      <label id="studentUsnWrap" hidden>Student USN
+        <input id="studentUsn" type="search" maxlength="20" placeholder="Enter student USN" autocomplete="off">
+      </label>
     </div>
-    <div style="margin-top:20px;">
-      <a href="/reports/consolidated" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Consolidated Result</a>
-      <a href="/reports/class" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Class Result</a>
-      <a href="/reports/topper" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Topper Report</a>
-      <a href="/reports/failed" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Failed Students</a>
-      <a href="/reports/subject-wise" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Subject-wise Report</a>
-      <a href="/reports/student" class="btn btn-primary" style="display:block; width:100%;">Student Report</a>
+    <div class="reports-filters">
+      <label>Batch <select id="reportBatch"><option value="">All batches</option></select></label>
+      <label>Semester <select id="reportSemester"><option value="">All semesters</option></select></label>
+      <label>Exam session <select id="reportSession"><option value="">Select exam session</option></select></label>
+      <button class="btn btn-primary" id="generateReport" type="button">Generate report</button>
+      <button class="btn btn-secondary" id="resetReportFilters" type="button">Reset filters</button>
     </div>
-  </div>
-</div>
+    <p class="reports-note">Choose one exam session to produce comparable marks. Students with missing subject records appear as incomplete.</p>
+  </section>
 
-<script src="/js/main.js"></script>
+  <div id="reportLoading" class="report-message" role="status" hidden>Loading report…</div>
+  <div id="reportError" class="report-message report-error" role="alert" hidden></div>
+  <div id="reportEmpty" class="report-message" hidden>No students or result records match this exam session.</div>
+
+  <section id="classStats" class="report-stats" hidden aria-label="Class statistics">
+    <article class="card"><span>Total students</span><strong id="statTotal">0</strong></article>
+    <article class="card"><span>Passed</span><strong id="statPassed">0</strong></article>
+    <article class="card"><span>Failed</span><strong id="statFailed">0</strong></article>
+    <article class="card"><span>Incomplete</span><strong id="statIncomplete">0</strong></article>
+    <article class="card"><span>Pass percentage</span><strong id="statPassRate">0%</strong></article>
+    <article class="card"><span>Class average</span><strong id="statAverage">0%</strong></article>
+    <article class="card"><span>Highest / lowest</span><strong id="statRange">—</strong></article>
+  </section>
+
+  <section id="failedStats" class="report-stats" hidden aria-label="Failed student summary">
+    <article class="card"><span>Students with failed subjects</span><strong id="failedCount">0</strong></article>
+    <article class="card"><span>Incomplete students in scope</span><strong id="failedIncompleteCount">0</strong></article>
+    <article class="card"><span>Incomplete records with explicit failures</span><strong id="failedIncompleteFailures">0</strong></article>
+  </section>
+
+  <section id="subjectComparison" class="report-stats" hidden aria-label="Subject performance comparison">
+    <article class="card"><span>Highest pass percentage</span><strong id="highestSubjectPass">—</strong></article>
+    <article class="card"><span>Lowest pass percentage</span><strong id="lowestSubjectPass">—</strong></article>
+  </section>
+
+  <section id="subjectCharts" class="subject-chart-grid" hidden aria-label="Subject charts">
+    <article class="card report-chart-panel"><h3>Subject average marks</h3><div class="report-chart-wrap"><canvas id="subjectAverageChart"></canvas></div></article>
+    <article class="card report-chart-panel"><h3>Subject pass/fail comparison</h3><div class="report-chart-wrap"><canvas id="subjectPassFailChart"></canvas></div></article>
+    <article class="card report-chart-panel"><h3>Subject performance comparison</h3><div class="report-chart-wrap"><canvas id="subjectComparisonChart"></canvas></div></article>
+  </section>
+
+  <section id="studentStats" class="report-stats" hidden aria-label="Student performance summary">
+    <article class="card"><span>Student</span><strong id="studentSummaryName">—</strong></article>
+    <article class="card"><span>Total / maximum marks</span><strong id="studentSummaryMarks">—</strong></article>
+    <article class="card"><span>Percentage</span><strong id="studentSummaryPercentage">—</strong></article>
+    <article class="card"><span>SGPA</span><strong id="studentSummarySgpa">—</strong></article>
+    <article class="card"><span>CGPA</span><strong id="studentSummaryCgpa">—</strong></article>
+    <article class="card"><span>Subjects passed / failed</span><strong id="studentSummaryPassFail">—</strong></article>
+    <article class="card"><span>Overall status</span><strong id="studentSummaryStatus">—</strong></article>
+  </section>
+
+  <section id="classChartPanel" class="card report-chart-panel" hidden><h3>Class result distribution</h3><div class="report-chart-wrap"><canvas id="classResultChart" aria-label="Passed, failed and incomplete students"></canvas></div></section>
+
+  <section id="reportResults" class="card report-results" hidden>
+    <div class="report-results-heading"><div><h3 id="resultHeading">Report results</h3><p id="reportScope" class="reports-note"></p></div>
+      <div class="report-export"><button type="button" class="btn btn-secondary" data-export="csv">Export CSV</button><button type="button" class="btn btn-secondary" data-export="xlsx">Export Excel</button></div>
+    </div>
+    <div class="report-table-wrap"><table class="data-table"><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table></div>
+  </section>
+</main>
+
+<script src="/vendor/chart.js/chart.umd.js"></script>
+<script src="/js/reports.js"></script>
