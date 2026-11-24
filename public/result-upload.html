@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VTU Result Upload - Smart Result Analysis</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/result-upload.css" />
+</head>
+<body>
+  <header class="top-navbar">
+    <div class="brand"><img src="/images/logo.svg" alt="Smart Result Analysis" class="logo" /><span class="brand-title">Smart Student Result Analysis</span></div>
+    <div class="navbar-right"><a class="btn btn-secondary" href="/results/extract">PDF extraction preview</a><a class="btn btn-secondary" href="/results">Back to results</a><button id="logoutBtn" class="btn-logout" type="button">Logout</button></div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <nav><ul class="nav-list">
+        <li class="nav-caption">Workspace</li><li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+        <li class="nav-caption nav-caption-spaced">Results &amp; insights</li>
+        <li><a href="/results" class="nav-link">Result records</a></li>
+        <li><a href="/results/upload" class="nav-link active" aria-current="page">VTU result upload</a></li>
+        <li><a href="/reports" class="nav-link">Reports</a></li>
+      </ul></nav>
+    </aside>
+    <main class="main-content">
+      <div class="page-header"><span class="page-title-icon" aria-hidden="true">⇧</span><div><h1>VTU Original Result Upload</h1><p>Review extracted rows, select exam sessions, then confirm one atomic save.</p></div></div>
+      <section class="card upload-intro">
+        <div class="status-banner status-warning"><strong>Review before saving.</strong> The system never changes extracted marks. A confirmed upload saves all valid rows together; invalid rows block the entire upload.</div>
+        <p>Choose a text based VTU result PDF or an Excel workbook. The preview checks student, semester, subject and marks against current MySQL reference data.</p>
+        <p class="upload-limitation">Scanned image PDFs are not supported in this phase. OCR is not enabled. Files are processed in memory and discarded after preview.</p>
+        <form id="resultPreviewForm" enctype="multipart/form-data" novalidate>
+          <label class="upload-file-control" for="batchSelect">Batch
+            <select id="batchSelect" name="batchId" required><option value="">Loading batches…</option></select>
+          </label>
+          <label class="upload-file-control" for="semesterSelect">Semester
+            <select id="semesterSelect" name="semesterId" required disabled><option value="">Select a batch first</option></select>
+          </label>
+          <label class="upload-file-control" for="resultFile">VTU result file <span>PDF, XLS or XLSX · up to 15 MB</span>
+            <input type="file" id="resultFile" name="resultFile" accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
+          </label>
+          <div class="upload-form-actions"><button id="previewResultBtn" class="btn btn-primary" type="submit">Extract and preview</button><button id="clearResultBtn" class="btn btn-secondary" type="reset">Clear</button></div>
+        </form>
+      </section>
+      <div id="uploadLoading" class="upload-message" role="status" hidden>Extracting text and validating records…</div>
+      <div id="uploadMessage" class="upload-message" role="status" aria-live="polite" hidden></div>
+      <section id="previewPanel" class="upload-preview" hidden>
+        <header class="preview-heading"><div><h2>Extraction preview</h2><p id="previewFileName"></p></div><span id="previewSaveStatus" class="preview-no-save">Awaiting review</span></header>
+        <div class="upload-stats" aria-label="Validation totals">
+          <article class="card"><span>Extracted</span><strong id="totalRecordCount">0</strong></article>
+          <article class="card"><span>Valid</span><strong id="validRecordCount">0</strong></article>
+          <article class="card"><span>Invalid</span><strong id="invalidRecordCount">0</strong></article>
+          <article class="card duplicate-stat"><span>Duplicate originals</span><strong id="duplicateRecordCount">0</strong></article>
+        </div>
+        <div id="documentErrors" class="document-errors" hidden></div>
+        <section aria-labelledby="validRowsTitle"><h3 id="validRowsTitle">Valid records</h3><div class="upload-table-wrap"><table class="data-table upload-table">
+          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal</th><th>External</th><th>Total</th><th>Result</th><th>Exam session</th><th>Validation</th></tr></thead>
+          <tbody id="previewRowsValid"><tr><td colspan="10">No valid records.</td></tr></tbody>
+        </table></div></section>
+        <section aria-labelledby="invalidRowsTitle"><h3 id="invalidRowsTitle">Invalid records</h3><div class="upload-table-wrap"><table class="data-table upload-table">
+          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal</th><th>External</th><th>Total</th><th>Result</th><th>Exam session</th><th>Validation errors</th></tr></thead>
+          <tbody id="previewRowsInvalid"><tr><td colspan="10">No invalid records.</td></tr></tbody>
+        </table></div></section>
+        <section id="sessionMapping" class="session-mapping" hidden aria-labelledby="sessionMappingTitle">
+          <h3 id="sessionMappingTitle">Exam session mapping</h3>
+          <p>Select the existing exam session for each semester in this document.</p>
+          <div id="sessionChoices" class="session-choices"></div>
+          <div class="upload-form-actions">
+            <button id="confirmUploadBtn" class="btn btn-primary" type="button" disabled>Confirm and save all results</button>
+            <button id="cancelUploadBtn" class="btn btn-secondary" type="button">Cancel upload</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer"><p>&copy; 2026 Smart Student Result Analysis and Academic Performance Prediction System.</p></footer>
+  <script src="/js/api.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="/js/result-upload.js"></script>
+</body>
+</html>

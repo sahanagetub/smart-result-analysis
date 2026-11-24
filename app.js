@@ -18,7 +18,6 @@ const { initSemestersTable } = require('./services/semesterService');
 const { initExamSessionsTable } = require('./services/examSessionService');
 const { initSubjectsTable } = require('./services/subjectService');
 const { initResultsTable } = require('./services/resultService');
-const { seedDemoData } = require('./services/seedService');
 
 const sessionSecret = String(process.env.SESSION_SECRET || '').trim();
 function hasStrongSessionSecret(value) {
@@ -140,7 +139,6 @@ async function initializeDatabase() {
     await initSubjectsTable().catch((err) => console.error('Subjects table init error:', err));
     await initResultsTable().catch((err) => console.error('Results table init error:', err));
     console.log('Database tables initialization complete.');
-    await seedDemoData().catch((err) => console.error('Seed demo data error:', err.message));
   } catch (err) {
     console.error('Database initialization error:', err.message);
   }

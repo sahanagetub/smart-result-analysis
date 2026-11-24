@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const express = require('express');
+const XLSX = require('xlsx');
 
 process.env.DB_DISABLED = 'false';
 const model = require('../models/reportModel');
@@ -209,6 +210,16 @@ test('CSV and XLSX exports have useful headers, summaries and workbook bytes for
     assert.equal(xlsx.status, 200, `${type} XLSX`);
     assert.ok(Buffer.isBuffer(xlsx.body));
     assert.equal(xlsx.body.subarray(0, 2).toString(), 'PK');
+    const workbook = XLSX.read(xlsx.body, { type: 'buffer' });
+    assert.ok(workbook.SheetNames.length > 0, `${type} workbook has a sheet`);
+    const sheetCsv = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
+    const exportHeader = {
+      class: /Total students/, failed: /Students with failed subjects/,
+      'subject-wise': /Highest pass percentage/, student: /USN/,
+      consolidated: /USN/, topper: /USN/
+    }[type];
+    assert.match(sheetCsv, exportHeader, `${type} workbook summary values`);
+    assert.match(csv.body, /USN|Subject code/);
   }
   service.buildReport = async () => ({ type: 'consolidated', filters: { examSessionId: 3 }, results: [] });
   const emptyCsv = await invoke(controller.export, { examSessionId: '3', format: 'csv' }, { type: 'consolidated' });

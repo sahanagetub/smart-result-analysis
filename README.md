@@ -44,6 +44,37 @@ A comprehensive Node.js Express application for academic administration and perf
 - **Results**: Full CRUD with database storage
 - **Analytics**: Real statistics from database (replace hardcoded demo values)
 - **Reports**: 6 report types navigation (Comprehensive, Class, Topper, Failed, Subject-wise, Student)
+- **Phase 13 Result Upload**: protected VTU PDF/XLS/XLSX extraction, database validation, review, exam-session selection, and transactional confirmation. See [PHASE_13_UPLOAD.md](PHASE_13_UPLOAD.md).
+- **Phase 14–16 Result Import**: text-based PDF extraction, editable validation review, explicit confirmation, and transactional save through the existing Phase 13 result service. Scanned PDFs/OCR are not supported. Actual VTU PDF layout verification remains pending. See [PHASE_13_UPLOAD.md](PHASE_13_UPLOAD.md) and [PHASE_14_EXTRACTION.md](PHASE_14_EXTRACTION.md).
+- **Phase 17 Test Data Readiness**: automatic demo seeding is disabled; explicit demo seeding, guarded result cleanup review, synthetic PDF tests, analytics/report fixtures, and five-student calculation checks are documented in [PHASE_17_TEST_DATA.md](PHASE_17_TEST_DATA.md). Actual academic PDF verification remains dependent on owner-provided files.
+- **Phase 18 Testing**: main student, upload, validation, calculation, dashboard, topper, and report flows are covered by automated tests. See [PHASE_18_TESTING.md](PHASE_18_TESTING.md); run the complete suite with `npm test`.
+
+## Recommended Development Order
+
+1. Project setup
+2. Clerk login and layout
+3. Batch management
+4. Student import and management
+5. Semester management
+6. Exam session management
+7. Subject management
+8. Random test data
+9. Result calculation service
+10. Dashboard
+11. Analytics
+12. Reports
+13. Enable result upload
+14. Result extraction
+15. Result validation
+16. Preview and save
+17. Replace test data
+18. Final testing
+19. Documentation
+
+The project is scoped as a department result workflow: staff upload original
+results, then review analysis and reports. Revaluation, backlog, multiple
+attempt resolution, and advanced academic management are outside the current
+scope.
 
 ## Database Configuration
 - MySQL: Configured, optional in Phase 1
@@ -79,7 +110,7 @@ Some existing databases predate the subject maximum-mark columns. A safe, additi
 ✅ Subject management
 ✅ Results/import functionality
 ✅ Analytics and reports
-✅ "Upload Result 🔒" visible but disabled
+✅ "Upload Result" enabled for authenticated Admin and Staff users; uploads are validated and transactionally saved
 
 ## Tech Stack
 - Node.js, Express.js

@@ -32,6 +32,10 @@ test('login and legacy dashboard URLs resolve to styled current pages', async (t
 
   assert.equal((await request('GET', '/login')).location, '/login.html');
   assert.equal((await request('GET', '/dashboard.html')).location, '/login');
+  assert.equal((await request('GET', '/results/upload')).location, '/login');
+  assert.equal((await request('GET', '/results/extract')).location, '/login');
+  assert.equal((await request('GET', '/result-upload.html')).location, '/login');
+  assert.equal((await request('GET', '/result-extraction.html')).location, '/login');
   const login = await request('POST', '/api/auth/login', { body: { username: 'layout_test_admin', password: 'isolated-route-test-password' } });
   assert.equal(login.status, 200);
   const cookie = String(login.headers['set-cookie']?.[0] || '').split(';')[0];
@@ -44,4 +48,13 @@ test('login and legacy dashboard URLs resolve to styled current pages', async (t
   assert.match(dashboard.body, /class="app-shell"/);
   assert.match(dashboard.body, /href="\/css\/style\.css"/);
   assert.match(dashboard.body, /id="filterBatch"/);
+  const uploadPage = await request('GET', '/results/upload', { cookie });
+  assert.equal(uploadPage.status, 200);
+  assert.match(uploadPage.body, /VTU Original Result Upload/);
+  assert.match(uploadPage.body, /confirm and save all results/i);
+  assert.equal((await request('GET', '/result-upload.html', { cookie })).status, 200);
+  const extractionPage = await request('GET', '/results/extract', { cookie });
+  assert.equal(extractionPage.status, 200);
+  assert.match(extractionPage.body, /PDF Result Extraction/);
+  assert.equal((await request('GET', '/result-extraction.html', { cookie })).status, 200);
 });

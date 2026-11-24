@@ -59,6 +59,23 @@ async function resultExists(usn, subjectCode, examSessionId, executor = null) {
   return rows.length > 0;
 }
 
+// Resolve the existing row through the configured student and subject ids while
+// retaining the legacy result columns and unique key.
+async function findExistingOriginalResult(studentId, subjectId, examSessionId, executor) {
+  if (isDbDisabled()) return null;
+  const queryExecutor = executor || getPool();
+  if (!queryExecutor) throw new Error('Database pool unavailable.');
+  const [rows] = await queryExecutor.execute(`SELECT r.id, r.usn, r.subject_code AS subjectCode,
+      r.exam_session_id AS examSessionId, es.session_name AS sessionName
+    FROM results r
+    JOIN students st ON st.usn = r.usn
+    JOIN exam_sessions es ON es.id = r.exam_session_id
+    JOIN subjects sub ON sub.subject_code = r.subject_code AND sub.semester_id = es.semester_id
+    WHERE st.id = ? AND sub.id = ? AND r.exam_session_id = ?
+    LIMIT 1${executor ? ' FOR UPDATE' : ''}`, [studentId, subjectId, examSessionId]);
+  return rows[0] || null;
+}
+
 async function getAllResults(search = '') {
   if (isDbDisabled()) return [];
   const pool = getPool();
@@ -114,6 +131,7 @@ module.exports = {
   createResultsTable,
   createResult,
   resultExists,
+  findExistingOriginalResult,
   getAllResults,
   getResultsByExamSession,
   getResultStats,

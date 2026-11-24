@@ -204,6 +204,12 @@ test('production and mismatched database configurations block writes before conn
     env: { NODE_ENV: 'test', ALLOW_TEST_DATA_GENERATION: 'true', DB_NAME: 'smart_result_analysis', TEST_DATA_DATABASE_NAME: 'sras_test' }
   });
   await assert.rejects(mismatched.generateTestData(request()), { status: 403 });
+  const development = createService({
+    getPool: () => ({ getConnection: async () => { throw new Error('should not connect'); } }),
+    isDbDisabled: () => false,
+    env: { NODE_ENV: 'development', ALLOW_TEST_DATA_GENERATION: 'true', DB_NAME: 'smart_result_development', TEST_DATA_DATABASE_NAME: 'smart_result_development' }
+  });
+  await assert.rejects(development.generateTestData(request()), { status: 403 });
   assert.equal(state.connections, undefined);
 });
 

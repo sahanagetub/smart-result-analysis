@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, requireStaff } = require('../middleware/authMiddleware');
 const path = require('path');
 
 router.get('/', (req, res) => {
@@ -60,8 +60,12 @@ router.get('/results', requireAuth, (req, res) => {
   res.render('results/index', { title: 'Result Records', active: 'results' });
 });
 
-router.get('/results/upload', requireAuth, (req, res) => {
-  res.render('results/upload', { title: 'Upload Result', active: 'resultUpload' });
+router.get('/results/upload', requireAuth, requireStaff, (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'result-upload.html'));
+});
+
+router.get('/results/extract', requireAuth, requireStaff, (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'result-extraction.html'));
 });
 
 // Test data generator (admin only)

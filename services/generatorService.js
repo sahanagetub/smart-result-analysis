@@ -21,9 +21,11 @@ function createService(overrides = {}) {
   function isGenerationEnabled() {
     const configuredDb = String(env.DB_NAME || '').trim();
     const allowedDb = String(env.TEST_DATA_DATABASE_NAME || '').trim();
-    const isExplicitNonProduction = env.NODE_ENV === 'development' || env.NODE_ENV === 'test';
+    // Runtime synthetic generation is a test-only capability. Development demo data
+    // remains available through the separately guarded explicit seeder.
+    const isTestEnvironment = env.NODE_ENV === 'test';
     const hasTestDatabaseMarker = /(^|[_-])(test|testing|sandbox|dev|development)([_-]|$)/i.test(allowedDb);
-    return isExplicitNonProduction &&
+    return isTestEnvironment &&
       String(env.ALLOW_TEST_DATA_GENERATION || '').toLowerCase() === 'true' &&
       !dbDisabled() &&
       configuredDb.length > 0 && allowedDb.length > 0 && configuredDb === allowedDb && hasTestDatabaseMarker;

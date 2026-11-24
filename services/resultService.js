@@ -64,7 +64,7 @@ async function createResultService(data, dependencies = {}) {
   const connection = await pool.getConnection();
   let transactionStarted = false;
   let lockAcquired = false;
-  const lockKey = `sras:result:${crypto.createHash('sha256').update(`${input.usn}|${input.subject_code}|${input.exam_session_id}`).digest('hex').slice(0, 48)}`;
+  const lockKey = `sras:result:${crypto.createHash('sha256').update(`${input.usn.trim().toUpperCase()}|${input.subject_code.trim().toUpperCase()}|${input.exam_session_id}`).digest('hex').slice(0, 48)}`;
 
   try {
     const [lockRows] = await connection.execute('SELECT GET_LOCK(?, 10) AS acquired', [lockKey]);
@@ -93,6 +93,78 @@ async function createResultService(data, dependencies = {}) {
   }
 }
 
+/** Insert a confirmed upload atomically; duplicate keys fail the whole batch. */
+async function createResultsBatchService(records, dependencies = {}) {
+  if (!Array.isArray(records) || records.length === 0) throw createServiceError('At least one result is required.', 400);
+  if (records.length > 10000) throw createServiceError('An upload may contain at most 10,000 result rows.', 413);
+  const model = dependencies.resultModel || resultModel;
+  const disabled = dependencies.isDbDisabled || isDbDisabled;
+  const poolProvider = dependencies.getPool || getPool;
+  if (disabled()) throw createServiceError('Database integration is disabled.', 503);
+  const pool = poolProvider();
+  if (!pool) throw createServiceError('Database pool unavailable.', 503);
+  const normalized = records.map((record) => {
+    const input = validateResultInput(record);
+    const maxInternal = Number(record.max_internal_marks);
+    const maxExternal = Number(record.max_external_marks);
+    if (!(maxInternal > 0) || !(maxExternal > 0) || Math.abs(maxInternal + maxExternal - input.max_marks) > 0.01) {
+      throw createServiceError('Configured internal and external marks do not match the result maximum.', 400);
+    }
+    const outcome = resultCalculationService.determineSubjectResult(Number(record.internal_marks), Number(record.external_marks), input.marks_obtained);
+    const grade = resultCalculationService.calculateGrade((input.marks_obtained / input.max_marks) * 100);
+    if (grade === null || outcome.status !== record.status) throw createServiceError('The extracted result does not match Phase 9 calculation rules.', 400);
+    return { ...input, grade, status: outcome.status, exam_session_name: String(record.exam_session_name || '') };
+  });
+  const keys = normalized.map((record) => `${record.usn.trim().toUpperCase()}|${record.subject_code.trim().toUpperCase()}|${record.exam_session_id}`);
+  if (new Set(keys).size !== keys.length) throw createServiceError('The upload contains duplicate student-subject-session rows.', 409);
+  const lockKeys = [...new Set(keys)].map((key) => `sras:result:${crypto.createHash('sha256').update(key).digest('hex').slice(0, 48)}`).sort();
+  const connection = await pool.getConnection();
+  const acquiredLocks = [];
+  let transactionStarted = false;
+  try {
+    for (const lockKey of lockKeys) {
+      const [rows] = await connection.execute('SELECT GET_LOCK(?, 10) AS acquired', [lockKey]);
+      if (Number(rows[0]?.acquired) !== 1) throw createServiceError('A result in this upload is being saved by another request. Try again shortly.', 409);
+      acquiredLocks.push(lockKey);
+    }
+    await connection.beginTransaction();
+    transactionStarted = true;
+    if (typeof dependencies.beforeInsert === 'function') {
+      await dependencies.beforeInsert(connection, normalized);
+    }
+    for (const record of normalized) {
+      if (await model.resultExists(record.usn, record.subject_code, record.exam_session_id, connection)) {
+        throw createServiceError(`An existing result for ${record.usn}, ${record.subject_code}, and this exam session was found. Nothing was saved; review it and choose another session or cancel.`, 409);
+      }
+    }
+    const ids = [];
+    for (const record of normalized) ids.push(await model.createResult(record, connection));
+    await connection.commit();
+    transactionStarted = false;
+    return { savedCount: ids.length, resultIds: ids };
+  } catch (error) {
+    if (transactionStarted) {
+      try { await connection.rollback(); } catch (rollbackError) { error.rollbackError = rollbackError; }
+    }
+    if (error.code === 'ER_DUP_ENTRY') {
+      let conflict = null;
+      for (const record of normalized) {
+        if (await model.resultExists(record.usn, record.subject_code, record.exam_session_id, connection)) { conflict = record; break; }
+      }
+      const detail = conflict
+        ? `Duplicate original result for ${conflict.usn}, subject ${conflict.subject_code}, exam session "${conflict.exam_session_name || conflict.exam_session_id}". Nothing was overwritten.`
+        : 'An existing result conflicts with this upload. Nothing was overwritten.';
+      throw createServiceError(detail, 409);
+    }
+    throw error;
+  } finally {
+    for (const lockKey of acquiredLocks.reverse()) {
+      try { await connection.execute('SELECT RELEASE_LOCK(?)', [lockKey]); } catch (_) { /* disconnect releases named locks */ }
+    }
+    connection.release();
+  }
+}
+
 async function listResultsService(search = '') {
   return resultModel.getAllResults(search);
 }
@@ -114,6 +186,7 @@ async function deleteResultService(id) {
 module.exports = {
   initResultsTable,
   createResultService,
+  createResultsBatchService,
   validateResultInput,
   listResultsService,
   getResultsByExamSessionService,

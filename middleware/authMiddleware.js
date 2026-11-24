@@ -34,13 +34,14 @@ const requireStaff = requireRole(['Admin', 'Staff']);
 
 const protectedStaticPages = new Set([
   '/dashboard.html', '/batches.html', '/students.html', '/semesters.html',
-  '/sessions.html', '/subjects.html', '/results.html', '/analytics.html', '/reports.html', '/users.html'
+  '/sessions.html', '/subjects.html', '/results.html', '/result-upload.html', '/result-extraction.html', '/analytics.html', '/reports.html', '/users.html'
 ]);
 
 function protectStaticPage(req, res, next) {
   if (!protectedStaticPages.has(req.path)) return next();
   return requireAuth(req, res, () => {
     if (req.path === '/users.html') return requireAdmin(req, res, next);
+    if (req.path === '/result-upload.html' || req.path === '/result-extraction.html') return requireStaff(req, res, next);
     return next();
   });
 }
