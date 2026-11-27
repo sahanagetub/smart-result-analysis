@@ -13,7 +13,9 @@ async function createUsersTable() {
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(50) NOT NULL UNIQUE,
+        staff_code VARCHAR(40) NULL,
         password_hash VARCHAR(255) NOT NULL,
+        must_change_password TINYINT(1) NOT NULL DEFAULT 0,
         full_name VARCHAR(100) NOT NULL,
         email VARCHAR(100) NOT NULL UNIQUE,
         role ENUM('Admin','Staff') NOT NULL DEFAULT 'Staff',
@@ -23,9 +25,22 @@ async function createUsersTable() {
         INDEX idx_username (username),
         INDEX idx_email (email),
         INDEX idx_role (role),
-        INDEX idx_status (status)
+        INDEX idx_status (status),
+        UNIQUE KEY uq_users_staff_code (staff_code)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+    const [staffCodeColumn] = await conn.execute("SHOW COLUMNS FROM users LIKE 'staff_code'");
+    if (!staffCodeColumn.length) {
+      await conn.execute('ALTER TABLE users ADD COLUMN staff_code VARCHAR(40) NULL');
+    }
+    const [staffCodeIndex] = await conn.execute("SHOW INDEX FROM users WHERE Key_name = 'uq_users_staff_code'");
+    if (!staffCodeIndex.length) {
+      await conn.execute('ALTER TABLE users ADD UNIQUE INDEX uq_users_staff_code (staff_code)');
+    }
+    const [passwordFlagColumn] = await conn.execute("SHOW COLUMNS FROM users LIKE 'must_change_password'");
+    if (!passwordFlagColumn.length) {
+      await conn.execute('ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0');
+    }
     console.log('users table ensured.');
   } catch (err) {
     console.error('Failed to create users table:', err.message);
@@ -41,8 +56,8 @@ async function createUser(data) {
   const pool = getPool();
   if (!pool) throw new Error('Database pool unavailable.');
   const [result] = await pool.execute(
-    `INSERT INTO users (username, password_hash, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?)`,
-    [data.username, data.password_hash, data.full_name, data.email, data.role, data.status || 'Active']
+    `INSERT INTO users (username, staff_code, password_hash, must_change_password, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.username, data.staff_code || null, data.password_hash, data.must_change_password ? 1 : 0, data.full_name, data.email, data.role, data.status || 'Active']
   );
   return result.insertId;
 }
@@ -54,7 +69,7 @@ async function getAllUsers() {
   const pool = getPool();
   if (!pool) return [];
   const [rows] = await pool.execute(
-    `SELECT id, username, full_name, email, role, status, created_at, updated_at FROM users ORDER BY created_at DESC`
+    `SELECT id, username, staff_code, full_name, email, role, status, created_at, updated_at FROM users ORDER BY created_at DESC`
   );
   return rows;
 }
@@ -66,7 +81,7 @@ async function getUserById(id) {
   const pool = getPool();
   if (!pool) return null;
   const [rows] = await pool.execute(
-    `SELECT id, username, full_name, email, role, status, created_at, updated_at FROM users WHERE id = ?`,
+    `SELECT id, username, staff_code, full_name, email, role, status, created_at, updated_at FROM users WHERE id = ?`,
     [id]
   );
   return rows.length ? rows[0] : null;
@@ -92,7 +107,7 @@ async function getUserByUsername(username) {
   const pool = getPool();
   if (!pool) return null;
   const [rows] = await pool.execute(
-    `SELECT id, username, password_hash, full_name, email, role, status FROM users WHERE username = ? LIMIT 1`,
+    `SELECT id, username, password_hash, must_change_password, full_name, email, role, status FROM users WHERE username = ? LIMIT 1`,
     [username]
   );
   return rows.length ? rows[0] : null;
@@ -157,7 +172,7 @@ async function withUserMutation(id, requesterUsername, mutate) {
 }
 
 async function updateUser(id, data, requesterUsername) {
-  const allowed = ['full_name', 'email', 'role', 'status', 'password_hash'];
+  const allowed = ['staff_code', 'full_name', 'email', 'role', 'status', 'password_hash', 'must_change_password'];
   const fields = [];
   const params = [];
   for (const key of allowed) {
@@ -172,6 +187,18 @@ async function updateUser(id, data, requesterUsername) {
       return true;
     }
   });
+}
+
+async function changeTemporaryPassword(id, passwordHash) {
+  if (isDbDisabled()) throw createUserError('Database integration is disabled.', 503);
+  const pool = getPool();
+  if (!pool) throw createUserError('Database pool unavailable.', 503);
+  const [result] = await pool.execute(
+    `UPDATE users SET password_hash = ?, must_change_password = 0
+     WHERE id = ? AND role = 'Staff' AND must_change_password = 1 AND status = 'Active'`,
+    [passwordHash, id]
+  );
+  return result.affectedRows === 1;
 }
 
 async function deleteUser(id, requesterUsername) {
@@ -210,6 +237,7 @@ module.exports = {
   getUserByUsernameOrEmail,
   getUserByUsername,
   updateUser,
+  changeTemporaryPassword,
   deleteUser,
   countUsersByRole,
   assertAdminMutationAllowed

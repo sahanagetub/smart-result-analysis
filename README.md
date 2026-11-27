@@ -58,18 +58,16 @@ A comprehensive Node.js Express application for academic administration and perf
 5. Semester management
 6. Exam session management
 7. Subject management
-8. Random test data
-9. Result calculation service
-10. Dashboard
-11. Analytics
-12. Reports
-13. Enable result upload
-14. Result extraction
-15. Result validation
-16. Preview and save
-17. Replace test data
-18. Final testing
-19. Documentation
+8. Result calculation service
+9. Dashboard
+10. Analytics
+11. Reports
+12. Enable result upload
+13. Result extraction
+14. Result validation
+15. Preview and save
+16. Final testing
+17. Documentation
 
 The project is scoped as a department result workflow: staff upload original
 results, then review analysis and reports. Revaluation, backlog, multiple
@@ -91,7 +89,7 @@ Open http://localhost:3000 (redirects to login/dashboard).
 
 ### Initial administrator and production sessions
 
-There are no default administrator credentials. For first-time bootstrap, create a unique administrator username and password in a controlled environment. Set `ADMIN_USERNAME`, `ADMIN_DISPLAY_NAME`, and `ADMIN_PASSWORD_HASH` in the environment; generate the hash locally with `node -e "require('bcrypt').hash(process.argv[1], 12).then(console.log)" "your-new-password"`. Keep the plaintext password out of source control and logs. Remove the bootstrap credentials after creating a database-backed administrator.
+The single Admin/Clerk account is configured through `ADMIN_USERNAME`, `ADMIN_DISPLAY_NAME`, and `ADMIN_PASSWORD_HASH` in `.env`. Generate the bcrypt hash locally with `node -e "require('bcrypt').hash(process.argv[1], 12).then(console.log)" "your-new-password"`; keep the plaintext password out of source control and logs. Database-backed accounts are Staff only, and the Admin/Clerk continues to use these environment values.
 
 Production requires a unique random `SESSION_SECRET` of at least 32 characters. The built-in Express MemoryStore is for development only. Configure a persistent, production-appropriate session store before deploying multiple workers or restarting production instances; this repository does not currently configure one, so it is not deployment-ready.
 

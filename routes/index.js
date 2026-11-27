@@ -13,7 +13,6 @@ router.use('/api/subjects', require('./subjectRoutes'));
 router.use('/api/results', require('./resultRoutes'));
 router.use('/api/result-uploads', require('./resultUploadRoutes'));
 router.use('/api/result-extractions', require('./resultExtractionRoutes'));
-router.use('/api/generator', require('./generatorRoutes'));
 router.use('/', require('./healthRoutes'));
 
 module.exports = router;

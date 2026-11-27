@@ -31,6 +31,9 @@
   font-size: 0.95rem;
   width: 100%;
 }
+.temp-password-control { display:flex; gap:8px; }
+.temp-password-control input { min-width:0; flex:1; }
+.temp-password-control .btn { white-space:nowrap; }
 .field-error { color: #dc2626; font-size: 0.8rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 

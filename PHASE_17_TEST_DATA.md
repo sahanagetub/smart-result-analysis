@@ -12,9 +12,8 @@ The existing demo seeder is preserved and is available only through the
 explicit `npm run seed:demo` command. It requires `NODE_ENV=development` or
 `test` and a database name containing `dev`, `test`, or `sandbox`.
 
-The interactive test-data generator remains disabled unless its explicit
-development/test database safeguards are configured. Do not use it with
-academic production data.
+The interactive test-data generator and its API have been removed. Historical
+synthetic rows remain identifiable by legacy generator markers for cleanup review.
 
 ## Result cleanup review and approval
 
@@ -26,7 +25,7 @@ npm run cleanup:dev-results
 
 The preview displays each result ID, USN, subject, marks, grade/status, batch,
 semester, exam session, and its classification. Synthetic rows are marked only
-when they match generator markers or exactly match the deterministic demo
+when they match legacy synthetic markers or exactly match the deterministic demo
 manifest in `services/seedService.js`. Legacy/unmarked rows are review-only and
 cannot be deleted by the utility.
 

@@ -63,7 +63,8 @@ exports.export = async (req, res) => {
     const report = await reportService.buildReport(type, req.query);
     const rows = reportRows(report);
     const format = String(req.query.format || 'csv').toLowerCase();
-    const base = `${type}-report-${report.filters.examSessionId}`;
+    const reportId = report.filters.examSessionId || report.student?.usn || 'all-records';
+    const base = `${type}-report-${String(reportId).replace(/[^A-Za-z0-9_-]/g, '-')}`;
     if (format === 'csv') {
       const worksheet = XLSX.utils.json_to_sheet(rows, { header: reportHeaders(type) });
       let csv = XLSX.utils.sheet_to_csv(worksheet);

@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
 const examSessionController = require('../controllers/examSessionController');
+
+router.use(requireAuth, requireAdmin);
 
 // POST create exam session
 router.post('/', requireAuth, requireStaff, csrfMiddleware, examSessionController.createExamSession);

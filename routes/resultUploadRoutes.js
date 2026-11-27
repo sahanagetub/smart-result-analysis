@@ -2,7 +2,7 @@
 
 const express = require('express');
 const multer = require('multer');
-const { requireAuth, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, csrfMiddleware } = require('../middleware/authMiddleware');
 const controller = require('../controllers/resultUploadController');
 
 const router = express.Router();
@@ -25,13 +25,13 @@ function reservePreview(req, res, next) {
   next();
 }
 
-router.post('/preview', requireAuth, requireStaff, csrfMiddleware, reservePreview, (req, res, next) => {
+router.post('/preview', requireAuth, requireAdmin, csrfMiddleware, reservePreview, (req, res, next) => {
   receiveFile(req, res, (error) => error ? controller.handleUploadError(error, res) : next());
 }, controller.preview);
-router.get('/sessions', requireAuth, requireStaff, controller.sessions);
-router.post('/validate-session', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '2mb' }), controller.validateSession);
-router.post('/revalidate-selection', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '256kb' }), controller.revalidateSelection);
-router.post('/confirm', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '256kb' }), controller.confirm);
-router.post('/cancel', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '16kb' }), controller.cancel);
+router.get('/sessions', requireAuth, requireAdmin, controller.sessions);
+router.post('/validate-session', requireAuth, requireAdmin, csrfMiddleware, express.json({ limit: '2mb' }), controller.validateSession);
+router.post('/revalidate-selection', requireAuth, requireAdmin, csrfMiddleware, express.json({ limit: '256kb' }), controller.revalidateSelection);
+router.post('/confirm', requireAuth, requireAdmin, csrfMiddleware, express.json({ limit: '256kb' }), controller.confirm);
+router.post('/cancel', requireAuth, requireAdmin, csrfMiddleware, express.json({ limit: '16kb' }), controller.cancel);
 
 module.exports = router;

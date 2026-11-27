@@ -7,7 +7,7 @@ const http = require('node:http');
 const service = require('../services/userService');
 const model = require('../models/userModel');
 const controller = require('../controllers/userController');
-const { csrfMiddleware } = require('../middleware/authMiddleware');
+const { csrfMiddleware, requireAuth } = require('../middleware/authMiddleware');
 
 test('user creation validates fields and stores a bcrypt hash', async (t) => {
   const old = { existing: model.getUserByUsernameOrEmail, create: model.createUser };
@@ -15,12 +15,34 @@ test('user creation validates fields and stores a bcrypt hash', async (t) => {
   let inserted;
   model.getUserByUsernameOrEmail = async () => [];
   model.createUser = async (data) => { inserted = data; return 7; };
-  assert.equal(await service.createUserService({ username: 'staff1', full_name: 'Staff One', email: 'S@EXAMPLE.COM', password: 'secret1' }, 'Admin'), 7);
+  assert.equal(await service.createUserService({ username: 'staff1', staff_code: 'STF-001', full_name: 'Staff One', email: 'S@EXAMPLE.COM', password: 'secret1' }, 'Admin'), 7);
   assert.notEqual(inserted.password_hash, 'secret1');
   assert.equal(await bcrypt.compare('secret1', inserted.password_hash), true);
   assert.equal(inserted.email, 's@example.com');
+  assert.equal(inserted.staff_code, 'STF-001');
+  assert.equal(inserted.must_change_password, true);
   await assert.rejects(service.createUserService({ username: '', password: 'secret1' }, 'Admin'), { status: 400 });
   await assert.rejects(service.createUserService({ username: 'x', full_name: 'X', email: 'x@x.com', password: 'secret1' }, 'Staff'), { status: 403 });
+});
+
+test('first-login Staff sessions are confined to password update until changed', () => {
+  function check(method, url) {
+    const req = { method, originalUrl: url, path: url, session: { user: { role: 'Staff', mustChangePassword: true } } };
+    const res = {
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; },
+      redirect(path) { this.redirectTo = path; return this; }
+    };
+    let nextCalled = false;
+    requireAuth(req, res, () => { nextCalled = true; });
+    return { req, res, nextCalled };
+  }
+  assert.equal(check('GET', '/change-password').nextCalled, true);
+  const blockedApi = check('GET', '/api/results');
+  assert.equal(blockedApi.res.statusCode, 403);
+  assert.equal(blockedApi.res.body.passwordChangeRequired, true);
+  const blockedPage = check('GET', '/reports');
+  assert.equal(blockedPage.res.redirectTo, '/change-password');
 });
 
 test('user list and mutations are admin-only and validate identifiers', async () => {

@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tableBody = document.getElementById('usersTableBody');
   const fields = {
     id: document.getElementById('userId'), username: document.getElementById('username'),
-    full_name: document.getElementById('fullName'), email: document.getElementById('email'),
+    full_name: document.getElementById('fullName'), staff_code: document.getElementById('staffCode'), email: document.getElementById('email'),
     password: document.getElementById('password'), role: document.getElementById('userRole'),
     status: document.getElementById('userStatus')
   };
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return csrfToken;
   }
   async function loadUsers() {
-    tableBody.innerHTML = '<tr><td colspan="7" class="empty-row">Loading users...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="8" class="empty-row">Loading users...</td></tr>';
     try {
       const data = await request('/api/auth/users');
       users = data.data || [];
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('cardStaff').textContent = counts.staff;
       renderTable();
     } catch (error) {
-      tableBody.innerHTML = '<tr><td colspan="7" class="empty-row">Unable to load users.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="8" class="empty-row">Unable to load users.</td></tr>';
       message(error.message, 'error');
     }
   }
@@ -60,12 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderTable() {
     tableBody.replaceChildren();
     if (!users.length) {
-      tableBody.innerHTML = '<tr><td colspan="7" class="empty-row">No users found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="8" class="empty-row">No users found.</td></tr>';
       return;
     }
     for (const user of users) {
       const row = document.createElement('tr');
-      cell(row, user.username); cell(row, user.full_name); cell(row, user.email);
+      cell(row, user.username); cell(row, user.full_name); cell(row, user.staff_code); cell(row, user.email);
       cell(row, user.role); cell(row, user.status);
       cell(row, user.created_at ? new Date(user.created_at).toLocaleDateString() : '-');
       const actions = document.createElement('td');
@@ -87,22 +87,25 @@ document.addEventListener('DOMContentLoaded', () => {
     fields.id.value = user.id; fields.username.value = user.username;
     fields.username.disabled = true;
     fields.full_name.value = user.full_name; fields.email.value = user.email;
+    fields.staff_code.value = user.staff_code || '';
+    fields.staff_code.required = user.role === 'Staff';
     fields.password.value = ''; fields.password.required = false;
-    fields.role.value = user.role; fields.status.value = user.status;
+    fields.role.value = user.role === 'Staff' ? 'Staff' : '';
+    fields.status.value = user.status;
     formTitle.textContent = 'Edit User'; cancelFormBtn.style.display = 'inline-block';
     userForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function resetForm() {
     editingId = null; userForm.reset(); fields.id.value = '';
     fields.username.disabled = false; fields.password.required = true;
-    fields.role.value = 'Staff'; fields.status.value = 'Active';
+    fields.role.value = 'Staff'; fields.status.value = 'Active'; fields.staff_code.required = true;
     formTitle.textContent = 'Add New User'; cancelFormBtn.style.display = 'none';
   }
   userForm.addEventListener('submit', async (event) => {
     event.preventDefault(); message('');
     const payload = {
       full_name: fields.full_name.value.trim(), email: fields.email.value.trim(),
-      role: fields.role.value, status: fields.status.value
+      staff_code: fields.staff_code.value.trim(), role: fields.role.value, status: fields.status.value
     };
     if (!editingId) Object.assign(payload, { username: fields.username.value.trim(), password: fields.password.value });
     else if (fields.password.value) payload.password = fields.password.value;
@@ -126,5 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('addUserBtn').addEventListener('click', () => { resetForm(); userForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   cancelFormBtn.addEventListener('click', resetForm);
+  fields.role.addEventListener('change', () => { fields.staff_code.required = fields.role.value === 'Staff'; });
+  document.getElementById('generateTempPassword').addEventListener('click', () => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const random = new Uint8Array(18);
+    window.crypto.getRandomValues(random);
+    fields.password.value = Array.from(random, (byte) => alphabet[byte % alphabet.length]).join('');
+    fields.password.focus();
+  });
   loadUsers();
 });

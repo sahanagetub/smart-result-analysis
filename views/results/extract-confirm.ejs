@@ -1,0 +1,15 @@
+<% layout('../layouts/main') -%>
+<link rel="stylesheet" href="/css/result-extraction.css" />
+
+<div class="result-review-page">
+  <p class="muted">Review the validated records before saving them to the database.</p>
+  <div id="confirmationMessage" class="extraction-message" role="status" aria-live="polite" hidden></div>
+  <section id="confirmationContent" class="extraction-preview" hidden>
+    <header class="preview-header"><div><h2 id="confirmContext">Validated results</h2><p id="confirmCounts"></p><p>Only validated records shown here will be saved.</p></div><strong id="confirmSubjectCount" class="subject-count"></strong></header>
+    <div id="confirmStudentPreviews" class="student-previews"></div>
+    <section id="excludedRecords" class="confirmation-excluded" hidden><h2>Excluded records</h2><p>These records have validation issues and will not be saved.</p><ul id="excludedRecordList"></ul></section>
+    <div class="confirm-page-actions"><a id="backToEditButton" class="btn btn-secondary" href="/results/extract">Back to extraction</a><button id="confirmAndSaveButton" type="button" class="btn btn-primary">Confirm and save</button></div>
+  </section>
+  <section id="savedSummary" class="save-summary" hidden><h2>Results saved successfully</h2><p>Students saved: <strong id="savedStudentCount">0</strong></p><p>Subject results saved: <strong id="savedRecordCount">0</strong></p><a class="btn btn-secondary" href="/results">View saved results</a></section>
+</div>
+<script src="/js/result-extraction-confirm.js" defer></script>

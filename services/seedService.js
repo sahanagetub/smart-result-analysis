@@ -1,12 +1,11 @@
 'use strict';
 
-const bcrypt = require('bcrypt');
 const { getPool, isDbDisabled } = require('../config/db');
 const { calculateGrade } = require('./resultCalculationService');
 
 /**
- * Inserts comprehensive demo seed data into the database if not already present.
- * Ensures batches, semesters, exam sessions, subjects, students, results, and users.
+ * Inserts comprehensive academic demo data into the database if not already present.
+ * User accounts are provisioned separately by the administrator.
  */
 async function seedDemoData() {
   if (isDbDisabled()) {
@@ -22,32 +21,7 @@ async function seedDemoData() {
 
   const connection = await pool.getConnection();
   try {
-    // 1. Seed Users (Admin & Staff)
-    const adminHash = await bcrypt.hash('Ravi@123', 10);
-    const staffHash = await bcrypt.hash('Staff@123', 10);
-
-    const [existingUsers] = await connection.execute(
-      'SELECT id, username FROM users WHERE username IN (?, ?)',
-      ['ravi', 'staff']
-    );
-    const existingUsernames = new Set(existingUsers.map((u) => u.username));
-
-    if (!existingUsernames.has('ravi')) {
-      await connection.execute(
-        `INSERT INTO users (username, password_hash, full_name, email, role, status)
-         VALUES (?, ?, ?, ?, 'Admin', 'Active')`,
-        ['ravi', adminHash, 'Ravi (Admin)', 'ravi@example.com']
-      );
-    }
-    if (!existingUsernames.has('staff')) {
-      await connection.execute(
-        `INSERT INTO users (username, password_hash, full_name, email, role, status)
-         VALUES (?, ?, ?, ?, 'Staff', 'Active')`,
-        ['staff', staffHash, 'Academic Staff', 'staff@example.com']
-      );
-    }
-
-    // 2. Seed Batches
+    // 1. Seed Batches
     async function getOrCreateBatch(batchName, startYear, endYear) {
       const [rows] = await connection.execute('SELECT id FROM batches WHERE batch_name = ?', [batchName]);
       if (rows.length > 0) return rows[0].id;
@@ -61,7 +35,7 @@ async function seedDemoData() {
     const batchId2025 = await getOrCreateBatch('2025-2027', 2025, 2027);
     const batchId2024 = await getOrCreateBatch('2024-2026', 2024, 2026);
 
-    // 3. Seed Semesters for Batch 2025-2027
+    // 2. Seed Semesters for Batch 2025-2027
     async function getOrCreateSemester(batchId, semNum, semName) {
       const [rows] = await connection.execute(
         'SELECT id FROM semesters WHERE batch_id = ? AND semester_number = ?',
@@ -79,7 +53,7 @@ async function seedDemoData() {
     const sem2Id = await getOrCreateSemester(batchId2025, 2, 'Semester 2');
     await getOrCreateSemester(batchId2024, 1, 'Semester 1');
 
-    // 4. Seed Exam Sessions
+    // 3. Seed Exam Sessions
     async function getOrCreateSession(semesterId, sessionName, startDate, endDate) {
       const [rows] = await connection.execute(
         'SELECT id FROM exam_sessions WHERE semester_id = ? AND session_name = ?',
@@ -106,7 +80,7 @@ async function seedDemoData() {
       '2025-06-27'
     );
 
-    // 5. Seed Subjects for Semester 1
+    // 4. Seed Subjects for Semester 1
     const sem1Subjects = [
       { code: 'MCA101', name: 'Advanced Data Structures', credits: 4, internal: 40, external: 60, total: 100 },
       { code: 'MCA102', name: 'Advanced Database Systems', credits: 4, internal: 40, external: 60, total: 100 },
@@ -152,7 +126,7 @@ async function seedDemoData() {
       }
     }
 
-    // 6. Seed Students in Batch 2025-2027
+    // 5. Seed Students in Batch 2025-2027
     const demoStudents = [
       { usn: '1RV25MC001', name: 'Ravi Kumar', email: 'ravi.kumar@example.com' },
       { usn: '1RV25MC002', name: 'Priya Singh', email: 'priya.singh@example.com' },
@@ -181,7 +155,7 @@ async function seedDemoData() {
       }
     }
 
-    // 7. Seed Results for Semester 1 Exam Session
+    // 6. Seed Results for Semester 1 Exam Session
     // Curated marks for each student across the 6 subjects
     const studentMarksMap = {
       '1RV25MC001': [86, 88, 84, 89, 87, 85], // Ravi Kumar (~86.5% - A+)

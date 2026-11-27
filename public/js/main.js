@@ -27,19 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (href && href === current) link.classList.add('active');
   });
 
-  // Mobile sidebar toggle injection
-  const navbarRight = document.querySelector('.navbar-right') || document.querySelector('.header-right');
-  const sidebar = document.getElementById('sidebar');
-  if (navbarRight && sidebar && !document.getElementById('sidebarToggle')) {
-    const btn = document.createElement('button');
-    btn.id = 'sidebarToggle';
-    btn.className = 'btn-logout';
-    btn.textContent = 'Menu';
-    btn.style.marginRight = '8px';
-    navbarRight.insertBefore(btn, navbarRight.firstChild);
-    btn.addEventListener('click', () => sidebar.classList.toggle('open'));
-  }
-
   // Collapsible nav groups
   const groups = document.querySelectorAll('.nav-group');
   groups.forEach((group) => {

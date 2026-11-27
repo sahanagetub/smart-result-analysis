@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, csrfMiddleware } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, csrfMiddleware } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const studentController = require('../controllers/studentController');
+
+router.use(requireAuth, requireAdmin);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 

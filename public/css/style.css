@@ -37,6 +37,8 @@ body { font-family: Inter, 'Segoe UI', Tahoma, sans-serif; background: var(--bg)
 .nav-icon { width:21px; height:21px; flex:0 0 21px; display:inline-block; color:#aebbd0; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .nav-icon path,.nav-icon circle,.nav-icon rect { vector-effect:non-scaling-stroke; }
 .nav-link.active .nav-icon { color:#fff; }
+.nav-link.restricted-link:not(.active) { opacity:.78; }
+.restricted-mark { margin-left:auto; font-size:.72rem; line-height:1; }
 .nav-divider { border-top:1px solid rgba(255,255,255,.1); margin:22px 10px 10px; }
 .sidebar form { margin:0; }
 .nav-logout { border:0; background:none; text-align:left; cursor:pointer; color:#d5a3a8; font:inherit; }
@@ -107,6 +109,14 @@ tr:last-child td { border-bottom:0; }
 .status-warn { background:#fff7df; color:#875d0b; border:1px solid #f4df9d; }
 .status-info { background:#e8f5f2; color:#17645d; border:1px solid #c9e6df; }
 .status-error { background:#fff0ef; color:#a3332a; border:1px solid #f0c3bf; }
+.result-subject-code,.result-subject-name { display:block; }
+.result-subject-code { color:#0f766e; font-size:.76rem; font-weight:700; }
+.result-subject-name { margin-top:3px; }
+.result-status-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px; font-size:.72rem; font-weight:750; }
+.result-status-badge.is-pass { background:#e4f5ed; color:#167548; }
+.result-status-badge.is-fail { background:#fff0ef; color:#b43d35; }
+#resultsTable tbody tr:hover { background:#f8fbfa; }
+#resultsTable .empty-row { padding:26px 14px; text-align:center; color:var(--muted); }
 @media (max-width:900px) { .sidebar { width:230px; } .main-content { padding:24px 20px; } }
 @media (max-width:680px) { .app-shell { flex-direction:column; } .sidebar { position:static; width:100%; height:auto; padding:12px; overflow:visible; } .nav-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 8px; } .nav-caption { grid-column:1/-1; padding:8px 10px 4px; } .nav-caption-spaced { margin-top:8px; } .nav-divider { grid-column:1/-1; margin:12px 8px 4px; } .nav-link { min-height:40px; font-size:.8rem; } .top-navbar { padding:10px 16px; } .brand-title { font-size:.88rem; } .main-content { padding:22px 16px; } .form-row { grid-template-columns:1fr; gap:0; } }
 @media (max-width:420px) { .clerk-profile { display:none; } .nav-list { grid-template-columns:1fr 1fr; } .search-box,.search-box input { width:100%; } }

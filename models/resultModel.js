@@ -111,14 +111,15 @@ async function getAllResults(search = '') {
   if (!pool) return [];
   let sql = `SELECT r.id, r.usn, r.subject_code, r.subject_name, r.marks_obtained, r.max_marks,
                     r.grade, r.status, r.exam_session_id, r.created_at,
-                    es.session_name, s.semester_number, s.semester_name
+                    st.name AS student_name, es.session_name, s.semester_number, s.semester_name
              FROM results r
+             LEFT JOIN students st ON UPPER(st.usn) = UPPER(r.usn)
              JOIN exam_sessions es ON r.exam_session_id = es.id
              JOIN semesters s ON es.semester_id = s.id`;
   const params = [];
   if (search) {
-    sql += ` WHERE r.usn LIKE ? OR r.subject_name LIKE ?`;
-    params.push('%' + search + '%', '%' + search + '%');
+    sql += ` WHERE r.usn LIKE ? OR st.name LIKE ? OR r.subject_code LIKE ? OR r.subject_name LIKE ? OR es.session_name LIKE ?`;
+    params.push(...Array(5).fill('%' + search + '%'));
   }
   sql += ` ORDER BY r.created_at DESC`;
   const [rows] = await pool.execute(sql, params);

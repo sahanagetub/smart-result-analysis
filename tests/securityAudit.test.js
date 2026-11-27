@@ -36,9 +36,12 @@ test('static application pages require a session and user management requires an
     return { status: res.statusCode, location: res.location, body: res.body, nextCalled };
   }
   assert.deepEqual(check('/dashboard.html'), { status: 302, location: '/login', body: undefined, nextCalled: false });
-  assert.equal(check('/dashboard.html', { role: 'Staff' }).nextCalled, true);
+  assert.deepEqual(check('/dashboard.html', { role: 'Staff' }), { status: 302, location: '/dashboard', body: undefined, nextCalled: false });
   assert.equal(check('/users.html', { role: 'Staff' }).status, 403);
+  assert.equal(check('/result-upload.html', { role: 'Staff' }).status, 403);
+  assert.equal(check('/result-extraction.html', { role: 'Staff' }).status, 403);
   assert.equal(check('/users.html', { role: 'Admin' }).nextCalled, true);
+  assert.equal(check('/result-upload.html', { role: 'Admin' }).nextCalled, true);
   assert.equal(check('/login.html').nextCalled, true);
 });
 
@@ -65,6 +68,8 @@ test('shared sidebar logout uses the CSRF-aware client handler', () => {
   const sidebar = fs.readFileSync(path.join(process.cwd(), 'views', 'partials', 'sidebar.ejs'), 'utf8');
   const main = fs.readFileSync(path.join(process.cwd(), 'public', 'js', 'main.js'), 'utf8');
   assert.match(sidebar, /id="sidebarLogoutForm"/);
+  assert.match(sidebar, /Upload results<%= isAdminUser \? '' : ' \(administrator access required\)' %>/);
+  assert.match(sidebar, /class="nav-link <%= active === 'resultUpload'/);
   assert.doesNotMatch(sidebar, /onsubmit=/);
   assert.match(main, /sidebarLogoutForm\.addEventListener\('submit', logout\)/);
   assert.match(main, /fetch\('\/api\/auth\/csrf'/);

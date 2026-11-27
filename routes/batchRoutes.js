@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, csrfMiddleware } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, csrfMiddleware } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 const batchController = require('../controllers/batchController');
+
+router.use(requireAuth, requireAdmin);
 
 const batchValidation = [
   body('batch_name').trim().notEmpty().withMessage('Batch name is required.').escape(),

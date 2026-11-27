@@ -434,6 +434,7 @@ body.login-body {
 .login-error:not(:empty) {
   display: flex;
 }
+.login-error.login-success { color:#166534; background:#f0fdf4; border-color:#bbf7d0; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }

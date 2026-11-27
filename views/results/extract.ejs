@@ -1,0 +1,37 @@
+<% layout('../layouts/main') -%>
+<link rel="stylesheet" href="/css/result-extraction.css" />
+
+<div class="result-review-page">
+  <p class="muted">Compare the extracted marks with the uploaded card before validation.</p>
+  <section class="card extraction-form-card">
+    <div class="status-banner status-info"><strong>Review before saving.</strong> The same PDF may be uploaded again. Results already saved for a student, semester, and subject are flagged and cannot be saved twice.</div>
+    <div class="selection-grid">
+      <label for="batchSelect"><span class="upload-step-number">1</span> Select batch<select id="batchSelect" required><option value="">Loading batches...</option></select></label>
+      <label for="sessionSelect"><span class="upload-step-number">2</span> Select exam session<select id="sessionSelect" required disabled><option value="">Select a batch first</option></select></label>
+      <label hidden aria-hidden="true">Semester<select id="semesterSelect" disabled><option value=""></option></select></label>
+    </div>
+    <form id="extractionForm" class="file-pick-row" enctype="multipart/form-data" novalidate>
+      <label class="pdf-file-control" for="resultPdf"><span class="upload-step-number">3</span> Upload result / marks card <span>Selectable text PDF · up to 15 MB</span><input type="file" id="resultPdf" name="resultPdf" accept="application/pdf,.pdf" required /></label>
+      <div class="extraction-actions"><button id="extractButton" type="submit" class="btn btn-primary">Upload and extract</button><button id="clearButton" type="button" class="btn btn-secondary">Clear review</button></div>
+    </form>
+  </section>
+  <div id="extractionMessage" class="extraction-message" role="status" aria-live="polite" hidden></div>
+
+  <section id="extractionPreview" class="extraction-preview" hidden>
+    <header class="preview-header"><div><h2>Review marks card</h2><p id="previewContext"></p><p id="previewFileName"></p></div><strong id="subjectCount" class="subject-count">0 subjects</strong></header>
+    <div id="extractionErrors" class="extraction-errors" role="alert" hidden></div>
+    <div class="review-workspace">
+      <section class="pdf-card" aria-label="Original marks card preview">
+        <header class="pdf-card-heading"><div><strong>Original Marks Card</strong><span>Compare every result with the PDF</span></div><a id="openPdfLink" class="btn btn-secondary pdf-open-link" target="_blank" rel="noopener" hidden>Open PDF</a></header>
+        <iframe id="pdfPreviewFrame" title="Original marks card PDF" src="about:blank"></iframe>
+      </section>
+      <div class="review-panel">
+        <section class="review-instructions"><span class="review-step">ADMIN REVIEW</span><h3>Subject results</h3><p>Subject names and maximum marks come from the selected semester in the database, matched by subject code. Edit internal and external marks; totals update automatically.</p></section>
+        <div id="studentPreviews" class="student-previews"></div>
+        <div class="review-main-actions"><button id="validateButton" type="button" class="btn btn-primary">Validate marks <span aria-hidden="true">→</span></button></div>
+        <section id="validationResults" class="validation-summary" hidden><div id="validationSummary"></div><section class="validation-group"><h3>Needs attention</h3><div id="invalidStudentPreviews" class="student-previews"></div></section></section>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="/js/result-extraction.js" defer></script>

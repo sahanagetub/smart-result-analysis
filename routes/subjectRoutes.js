@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 const subjectController = require('../controllers/subjectController');
+
+router.use(requireAuth, requireAdmin);
 
 const subjectValidation = [
   body('subject_code').trim().notEmpty().withMessage('Subject code is required.').escape(),

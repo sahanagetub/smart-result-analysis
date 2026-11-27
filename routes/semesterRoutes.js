@@ -3,6 +3,8 @@ const router = express.Router();
 const { requireAuth, requireAdmin, requireStaff, csrfMiddleware } = require('../middleware/authMiddleware');
 const semesterController = require('../controllers/semesterController');
 
+router.use(requireAuth, requireAdmin);
+
 // GET all semesters (supports ?batchId=, ?search=, ?status=)
 router.get('/', requireAuth, semesterController.getAllSemesters);
 

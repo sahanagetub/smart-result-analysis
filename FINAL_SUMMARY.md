@@ -29,7 +29,6 @@
 
 **Integration:**
 - `services/resultService.js`: `createResultService` now uses `resultCalculationService.calculateGrade(pct)` and sets status = 'Pass' if pct >= 50
-- `services/generatorService.js`: `generateResultData` now uses `resultCalculationService.determineSubjectResult(cieMarks, seeMarks, totalMarks)`
 
 **Verification:** All 9 functions tested against expected examples from task specification - all match correctly.
 
@@ -94,7 +93,6 @@ No new dashboard data or duplicate endpoints created.
 ## Files Modified
 
 - `services/resultService.js` - Integrated calculation service for grade determination
-- `services/generatorService.js` - Integrated calculation service for result generation
 - `middleware/authMiddleware.js` - Fixed CSRF: reject missing tokens on protected routes
 - `app.js` - Added rate limiting + CSRF token initializer
 
@@ -104,7 +102,6 @@ No new dashboard data or duplicate endpoints created.
 # Phase A verification
 node --check services/resultCalculationService.js
 node --check services/resultService.js
-node --check services/generatorService.js
 
 # Phase C verification
 node --check middleware/authMiddleware.js

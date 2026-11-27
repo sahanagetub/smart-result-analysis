@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .then((r) => r.json())
     .then((data) => {
       if (data && data.success) {
-        window.location.href = '/dashboard.html';
+        window.location.href = '/dashboard';
       }
     })
     .catch(() => {});
@@ -22,8 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tabAdmin = document.getElementById('tabAdmin');
   const tabStaff = document.getElementById('tabStaff');
-  const btnFillAdmin = document.getElementById('btnFillAdmin');
-  const btnFillStaff = document.getElementById('btnFillStaff');
+  let selectedRole = 'Admin';
+
+  if (new URLSearchParams(window.location.search).get('passwordUpdated') === '1' && errorEl) {
+    errorEl.classList.add('login-success');
+    errorEl.textContent = 'Your password was updated. Sign in with your new password.';
+  }
 
   // Restore remembered username
   try {
@@ -64,25 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Flash input highlight animation helper
-  function flashInputs() {
-    [usernameInput, passwordInput].forEach((el) => {
-      if (!el) return;
-      el.style.transition = 'background-color 0.15s ease';
-      el.style.backgroundColor = '#dbeafe';
-      setTimeout(() => {
-        el.style.backgroundColor = '';
-      }, 350);
-    });
-  }
-
-  // Role Fill Helpers
-  function setCredentials(username, password, roleName) {
-    if (usernameInput) usernameInput.value = username;
-    if (passwordInput) passwordInput.value = password;
-    if (portalSubtitle) portalSubtitle.textContent = `${roleName} Portal`;
-    if (errorEl) errorEl.textContent = '';
-    flashInputs();
+  // The selected portal is sent to the server and checked against the account role.
+  function selectRole(role) {
+    selectedRole = role;
+    const adminSelected = role === 'Admin';
+    activateTab(adminSelected ? tabAdmin : tabStaff, adminSelected ? tabStaff : tabAdmin);
+    if (portalSubtitle) portalSubtitle.textContent = adminSelected ? 'Administrator / Clerk Portal' : 'Faculty & Staff Portal';
+    if (errorEl) { errorEl.textContent = ''; errorEl.classList.remove('login-success'); }
   }
 
   function activateTab(activeTab, inactiveTab) {
@@ -97,43 +89,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (tabAdmin) {
-    tabAdmin.addEventListener('click', () => {
-      activateTab(tabAdmin, tabStaff);
-      setCredentials('ravi', 'Ravi@123', 'Administrator');
-    });
+    tabAdmin.addEventListener('click', () => selectRole('Admin'));
   }
 
   if (tabStaff) {
-    tabStaff.addEventListener('click', () => {
-      activateTab(tabStaff, tabAdmin);
-      setCredentials('staff', 'Staff@123', 'Faculty & Staff');
-    });
-  }
-
-  if (btnFillAdmin) {
-    btnFillAdmin.addEventListener('click', () => {
-      activateTab(tabAdmin, tabStaff);
-      setCredentials('ravi', 'Ravi@123', 'Administrator');
-    });
-  }
-
-  if (btnFillStaff) {
-    btnFillStaff.addEventListener('click', () => {
-      activateTab(tabStaff, tabAdmin);
-      setCredentials('staff', 'Staff@123', 'Faculty & Staff');
-    });
+    tabStaff.addEventListener('click', () => selectRole('Staff'));
   }
 
   // Keyboard Shortcuts (Alt+A for Admin, Alt+S for Staff, Escape to clear errors)
   document.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'a' || e.key === 'A')) {
       e.preventDefault();
-      activateTab(tabAdmin, tabStaff);
-      setCredentials('ravi', 'Ravi@123', 'Administrator');
+      selectRole('Admin');
     } else if (e.altKey && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
-      activateTab(tabStaff, tabAdmin);
-      setCredentials('staff', 'Staff@123', 'Faculty & Staff');
+      selectRole('Staff');
     } else if (e.key === 'Escape' && errorEl) {
       errorEl.textContent = '';
     }
@@ -159,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
       input.addEventListener('input', () => {
         if (errorEl && errorEl.textContent) {
           errorEl.textContent = '';
+          errorEl.classList.remove('login-success');
         }
       });
     }
@@ -167,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form Submission
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (errorEl) errorEl.textContent = '';
+    if (errorEl) { errorEl.textContent = ''; errorEl.classList.remove('login-success'); }
 
     const username = usernameInput ? usernameInput.value.trim() : '';
     const password = passwordInput ? passwordInput.value : '';
@@ -195,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, role: selectedRole })
       });
       const data = await res.json();
 
@@ -213,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loginBtn.classList.add('btn-success');
         loginBtn.innerHTML = '<span>&#10003; Success! Redirecting...</span>';
         setTimeout(() => {
-          window.location.href = data.redirect || '/dashboard.html';
+          window.location.href = data.redirect || '/dashboard';
         }, 400);
       } else {
         if (errorEl) errorEl.textContent = (data && data.message) || 'Invalid username or password.';

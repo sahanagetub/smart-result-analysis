@@ -1,0 +1,17 @@
+<% layout('../layouts/main') -%>
+
+<section class="card access-denied-card" role="alert">
+  <span class="access-denied-icon" aria-hidden="true">🔒</span>
+  <div>
+    <h2>Administrator access required</h2>
+    <p><%= message %></p>
+    <a class="btn btn-primary" href="/dashboard">Return to dashboard</a>
+  </div>
+</section>
+
+<style>
+  .access-denied-card{display:flex;align-items:flex-start;gap:1rem;max-width:700px;border-color:#f2d4a5;background:#fffaf0}
+  .access-denied-icon{font-size:1.5rem}
+  .access-denied-card h2{margin:0 0 .35rem;font-size:1.1rem;color:#714b0c}
+  .access-denied-card p{margin:0 0 1rem;color:#655b48}
+</style>

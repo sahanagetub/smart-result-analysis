@@ -2,6 +2,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const charts = new Map();
+  let loadSequence = 0;
   let options = { batches: [], semesters: [], sessions: [], subjects: [], academicYears: [] };
   const chartColors = ['#0f766e', '#38a89d', '#d6a84f', '#52736e', '#5d9ca7', '#9a7bb5', '#b96755'];
 
@@ -9,7 +10,7 @@
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     let body;
     try { body = await response.json(); } catch { throw new Error(`Invalid response from ${url}`); }
-    if (!response.ok || body.success === false) throw new Error(body.error || `Request failed (${response.status})`);
+    if (!response.ok || body.success === false) throw new Error(body.error || body.message || `Request failed (${response.status})`);
     return body.data;
   }
 
@@ -42,7 +43,7 @@
     return { text: style.color || '#1f2937', grid: style.getPropertyValue('--border').trim() || 'rgba(128,128,128,.2)' };
   }
 
-  function renderChart(id, type, labels, datasets, horizontal = false) {
+  function renderChart(id, type, labels, datasets, horizontal = false, onClick = null) {
     const canvas = $(id);
     if (!canvas || !window.Chart) return;
     charts.get(id)?.destroy();
@@ -70,7 +71,7 @@
       }],
       options: {
         responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x',
-        color: theme.text,
+        color: theme.text, onClick,
         plugins: { legend: { display: dataSets.length > 1 || type === 'doughnut', labels: { color: theme.text } } },
         scales: type === 'doughnut' ? {} : {
           x: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
@@ -148,7 +149,13 @@
     renderChart('subjectChart', 'bar', data.subjects.map((x) => `${x.subjectCode} · ${x.subjectName}`), [
       { label: 'Average percentage', data: data.subjects.map((x) => x.averagePercentage), percentage: true },
       { label: 'Pass percentage', data: data.subjects.map((x) => x.passPercentage), percentage: true }
-    ], true);
+    ], true, (_event, elements) => {
+      if (!elements.length) return;
+      const subject = data.subjects[elements[0].index];
+      if (!subject) return;
+      $('filterSubject').value = subject.subjectCode;
+      loadAnalytics();
+    });
     renderStudents(data.students);
     renderSubjects(data.subjects);
     const empty = Number(overview.totalResults) === 0;
@@ -156,6 +163,7 @@
   }
 
   async function loadAnalytics() {
+    const sequence = ++loadSequence;
     $('analyticsLoading').hidden = false;
     $('analyticsError').hidden = true;
     $('analyticsEmpty').hidden = true;
@@ -170,14 +178,16 @@
         ['grades', '/grade-distribution', params], ['comparison', '/comparison', comparisonParams]
       ];
       const pairs = await Promise.all(paths.map(async ([key, path, query]) => [key, await fetchJson(`/api/analytics${path}${query.size ? `?${query}` : ''}`)]));
+      if (sequence !== loadSequence) return;
       const data = Object.fromEntries(pairs);
       // Expose comparison response for accessible data inspection; charts already show the core comparisons.
       document.dispatchEvent(new CustomEvent('analytics:loaded', { detail: data }));
       render(data);
     } catch (error) {
+      if (sequence !== loadSequence) return;
       $('analyticsError').textContent = error.message || 'Analytics could not be loaded.';
       $('analyticsError').hidden = false;
-    } finally { $('analyticsLoading').hidden = true; }
+    } finally { if (sequence === loadSequence) $('analyticsLoading').hidden = true; }
   }
 
   async function init() {
@@ -190,7 +200,10 @@
       $('analyticsError').textContent = error.message || 'Analytics filters could not be loaded.';
       $('analyticsError').hidden = false;
     }
-    $('filterBatch').addEventListener('change', () => { $('filterSemester').value = ''; refreshDependentOptions(); });
+    $('filterBatch').addEventListener('change', () => {
+      $('filterSemester').value = ''; $('filterSession').value = ''; $('filterSubject').value = '';
+      refreshDependentOptions();
+    });
     $('filterSemester').addEventListener('change', () => { $('filterSession').value = ''; $('filterSubject').value = ''; refreshDependentOptions(); });
     $('analyticsFilters').addEventListener('submit', (event) => { event.preventDefault(); return loadAnalytics(); });
     $('resetAnalytics').addEventListener('click', () => {

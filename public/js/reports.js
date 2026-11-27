@@ -3,6 +3,7 @@
   const $ = (id) => document.getElementById(id);
   let options = { batches: [], semesters: [], examSessions: [], subjects: [] };
   let currentReport = null;
+  let reportRequestId = 0;
   const charts = new Map();
   const labels = {
     consolidated: 'Consolidated result', class: 'Class result', topper: 'Topper report',
@@ -35,6 +36,7 @@
   }
 
   function updateReportControls() {
+    clearGeneratedReport();
     const type = $('reportType').value;
     $('topperLimitWrap').hidden = type !== 'topper';
     $('failedSearchWrap').hidden = type !== 'failed';
@@ -46,6 +48,18 @@
       button.classList.toggle('active', active);
     });
     refreshFilters();
+  }
+
+  function clearGeneratedReport() {
+    reportRequestId += 1;
+    currentReport = null;
+    show('reportLoading', false);
+    $('generateReport').disabled = false;
+    $('reportResults').hidden = true;
+    $('reportScope').textContent = '';
+    for (const id of ['classStats', 'classChartPanel', 'failedStats', 'subjectComparison', 'subjectCharts', 'studentStats', 'reportEmpty']) show(id, false);
+    charts.forEach((chart) => chart.destroy());
+    charts.clear();
   }
 
   function params() {
@@ -230,20 +244,26 @@
     }
     currentReport = null; $('reportResults').hidden = true;
     for (const id of ['classStats', 'classChartPanel', 'failedStats', 'subjectComparison', 'subjectCharts', 'studentStats']) show(id, false);
+    const requestId = ++reportRequestId;
     show('reportLoading', true); $('generateReport').disabled = true;
     try {
-      const response = await window.apiFetch(`/api/reports/${type}?${params()}`, { headers: { Accept: 'application/json' } });
+      const response = await fetch(`/api/reports/${type}?${params()}`, { credentials: 'include', headers: { Accept: 'application/json' } });
       const body = await response.json();
+      if (requestId !== reportRequestId) return;
       if (!response.ok || !body.success) throw new Error(body.message || `Request failed (${response.status})`);
       render(body.data);
-    } catch (error) { $('reportError').textContent = error.message || 'Unable to generate report.'; show('reportError', true); }
-    finally { show('reportLoading', false); $('generateReport').disabled = false; }
+    } catch (error) {
+      if (requestId !== reportRequestId) return;
+      $('reportError').textContent = error.message || 'Unable to generate report.'; show('reportError', true);
+    } finally {
+      if (requestId === reportRequestId) { show('reportLoading', false); $('generateReport').disabled = false; }
+    }
   }
 
   function resetFilters() {
     $('reportBatch').value = ''; $('reportSemester').value = ''; $('reportSession').value = '';
     $('reportSubject').value = ''; $('failedSearch').value = ''; $('studentUsn').value = '';
-    refreshFilters(); show('reportError', false); show('reportEmpty', false);
+    refreshFilters(); show('reportError', false); clearGeneratedReport();
   }
 
   async function init() {
@@ -251,9 +271,12 @@
     document.querySelectorAll('[data-report-tab]').forEach((button) => button.addEventListener('click', () => {
       $('reportType').value = button.dataset.reportTab; updateReportControls();
     }));
-    $('reportBatch').addEventListener('change', refreshFilters);
-    $('reportSemester').addEventListener('change', refreshFilters);
-    $('reportSession').addEventListener('change', refreshFilters);
+    $('reportBatch').addEventListener('change', () => { refreshFilters(); clearGeneratedReport(); });
+    $('reportSemester').addEventListener('change', () => { refreshFilters(); clearGeneratedReport(); });
+    $('reportSession').addEventListener('change', clearGeneratedReport);
+    ['topperLimit', 'reportSubject', 'failedSearch', 'studentUsn'].forEach((id) => {
+      $(id).addEventListener($(id).tagName === 'INPUT' ? 'input' : 'change', clearGeneratedReport);
+    });
     $('generateReport').addEventListener('click', generate);
     $('resetReportFilters').addEventListener('click', resetFilters);
     document.querySelectorAll('[data-export]').forEach((button) => button.addEventListener('click', () => {
@@ -266,8 +289,14 @@
       query.set('format', button.dataset.export);
       window.location.assign(`/api/reports/export/${currentReport.type}?${query}`);
     }));
+    $('printReport').addEventListener('click', () => {
+      if (!currentReport) return;
+      document.body.classList.add('print-report-mode');
+      window.addEventListener('afterprint', () => document.body.classList.remove('print-report-mode'), { once: true });
+      window.print();
+    });
     try {
-      const response = await window.apiFetch('/api/reports/filters', { headers: { Accept: 'application/json' } });
+      const response = await fetch('/api/reports/filters', { credentials: 'include', headers: { Accept: 'application/json' } });
       const body = await response.json();
       if (!response.ok || !body.success) throw new Error(body.message || 'Could not load report filters.');
       options = { ...options, ...body.data };
