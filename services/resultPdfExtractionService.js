@@ -1,8 +1,7 @@
 'use strict';
 
-const { PDFParse } = require('pdf-parse');
 const resultExtractionModel = require('../models/resultExtractionModel');
-const { parseVtuText } = require('./resultExtractionService');
+const { parseVtuText, extractSelectablePdfText } = require('./resultExtractionService');
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const MAX_PDF_PAGES = 100;
@@ -54,6 +53,9 @@ function validateSubject(source, sourceIndex) {
     internalMarks: readNumber(source.internalMarks),
     externalMarks: readNumber(source.externalMarks),
     totalMarks: readNumber(source.total),
+    maxInternalMarks: readNumber(source.maxInternalMarks),
+    maxExternalMarks: readNumber(source.maxExternalMarks),
+    totalMaximumMarks: readNumber(source.totalMaximumMarks),
     result: source.resultStatus === 'Pass' || source.resultStatus === 'P' ? 'P' : source.resultStatus === 'Fail' || source.resultStatus === 'F' ? 'F' : '',
     sourceRow: source.sourceRow ?? sourceIndex + 1,
     errors: []
@@ -128,6 +130,14 @@ async function listExamSessions(semesterIdValue, dependencies = {}) {
   return model.listExamSessions(semesterId);
 }
 
+async function listExamSessionsByBatch(batchIdValue, dependencies = {}) {
+  const batchId = positiveId(batchIdValue, 'batch');
+  const model = dependencies.model || resultExtractionModel;
+  const batches = await model.listBatches();
+  if (!batches.some((batch) => Number(batch.id) === batchId)) throw extractionError('Selected batch was not found.', 404);
+  return model.listExamSessionsByBatch(batchId);
+}
+
 async function extractPdf(file, selection = {}, dependencies = {}) {
   validatePdfFile(file);
   const batchId = positiveId(selection.batchId, 'batch');
@@ -137,14 +147,45 @@ async function extractPdf(file, selection = {}, dependencies = {}) {
   const context = await model.getSelectionContext(batchId, semesterId, examSessionId);
   if (!context) throw extractionError('The selected batch, semester and exam session do not belong together.', 400);
 
-  let parser;
   try {
-    parser = new PDFParse({ data: file.buffer });
-    const extracted = await parser.getText({ first: MAX_PDF_PAGES, lineEnforce: true, cellSeparator: ' ', pageJoiner: '\n' });
-    if (extracted.total > MAX_PDF_PAGES) throw extractionError('PDF exceeds the 100-page extraction limit.', 413);
-    let pdfText = String(extracted.text || '');
-    if (!pdfText.trim()) throw extractionError('The PDF contains no selectable text. Scanned PDFs are not supported in this phase.', 422);
-    const records = parseVtuText(pdfText, dependencies.parsingRules);
+    const pdfText = await extractSelectablePdfText(file.buffer, {
+      maxPages: MAX_PDF_PAGES,
+      pageLimitMessage: `PDF exceeds the ${MAX_PDF_PAGES}-page extraction limit.`,
+      noTextMessage: 'The PDF contains no selectable text. Scanned PDFs are not supported; OCR is not enabled.',
+      unreadableMessage: 'The PDF is corrupted, encrypted or unsupported. Choose a readable text-based PDF.'
+    });
+    let records = parseVtuText(pdfText, dependencies.parsingRules);
+    if (typeof model.getValidationReferenceData === 'function') {
+      const usns = [...new Set(records.map((record) => String(record.usn || '').trim().toUpperCase()).filter(Boolean))];
+      const references = await model.getValidationReferenceData(batchId, semesterId, usns);
+      if (!references || !Array.isArray(references.subjects)) {
+        throw extractionError('Unable to load subjects for the selected semester. Check the database connection and try again.', 503);
+      }
+      const subjectsByCode = new Map((references?.subjects || []).map((subject) => [
+        String(subject.subjectCode || subject.subject_code || '').replace(/\s+/g, '').toUpperCase(), subject
+      ]));
+      const extractedRecordCount = records.length;
+      records = records.flatMap((record) => {
+        const configured = subjectsByCode.get(String(record.subjectCode || '').replace(/\s+/g, '').toUpperCase());
+        if (!configured) return [];
+        // Subject code is the key that binds a marks row to the configured
+        // semester subject; names and marks are never used to guess the match.
+        // Only configured subjects enter the preview or save pipeline.
+        record.subjectCode = String(configured.subjectCode || configured.subject_code).trim().toUpperCase();
+        record.subjectName = configured.subjectName || configured.subject_name || '';
+        record.maxInternalMarks = Number(configured.maxInternalMarks ?? configured.max_internal_marks);
+        record.maxExternalMarks = Number(configured.maxExternalMarks ?? configured.max_external_marks);
+        record.totalMaximumMarks = Number(configured.totalMaximumMarks ?? configured.total_maximum_marks);
+        return [record];
+      });
+      if (extractedRecordCount > 0 && records.length === 0) {
+        throw extractionError('No subject codes in this marks card match subjects created for the selected semester. Create the subjects first, then upload the card again.', 422);
+      }
+    } else {
+      // Production always provides reference data; this fallback keeps parser-only
+      // integrations usable while avoiding PDF names as configured names.
+      records.forEach((record) => { record.subjectName = ''; });
+    }
     const students = groupRecords(records, pdfText);
     students.forEach((item) => { item.warnings = []; });
     for (const item of students) {
@@ -172,9 +213,7 @@ async function extractPdf(file, selection = {}, dependencies = {}) {
   } catch (error) {
     if (error.status) throw error;
     throw extractionError('The PDF is corrupted, encrypted or unsupported. Choose a readable text-based PDF.', 400);
-  } finally {
-    if (parser) await parser.destroy().catch(() => {});
   }
 }
 
-module.exports = { extractPdf, listBatches, listSemesters, listExamSessions, validatePdfFile, groupRecords, positiveId, extractionError };
+module.exports = { extractPdf, listBatches, listSemesters, listExamSessions, listExamSessionsByBatch, validatePdfFile, groupRecords, positiveId, extractionError };

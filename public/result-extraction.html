@@ -1,12 +1,59 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>PDF Result Extraction - Smart Result Analysis</title><link rel="stylesheet" href="/css/style.css" /><link rel="stylesheet" href="/css/result-extraction.css" /></head>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Result Extraction and Marks Card Review - Smart Result Analysis</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/result-extraction.css" />
+</head>
 <body>
-  <header class="top-navbar"><div class="brand"><img src="/images/logo.svg" alt="Smart Result Analysis" class="logo" /><span class="brand-title">Smart Student Result Analysis</span></div><div class="navbar-right"><a class="btn btn-secondary" href="/results/upload">Original result upload</a><button id="logoutBtn" class="btn-logout" type="button">Logout</button></div></header>
-  <div class="app-shell"><aside class="sidebar" aria-label="Main navigation"><nav><ul class="nav-list"><li class="nav-caption">Workspace</li><li><a href="/dashboard" class="nav-link">Dashboard</a></li><li class="nav-caption nav-caption-spaced">Results &amp; insights</li><li><a href="/results" class="nav-link">Result records</a></li><li><a href="/results/upload" class="nav-link">Original result upload</a></li><li><a href="/results/extract" class="nav-link active" aria-current="page">PDF extraction preview</a></li><li><a href="/reports" class="nav-link">Reports</a></li></ul></nav></aside>
-    <main class="main-content"><div class="page-header"><span class="page-title-icon" aria-hidden="true">PDF</span><div><h1>PDF Result Extraction</h1><p>Select the academic context, then inspect text extracted from a result PDF.</p></div></div>
-      <section class="card extraction-form-card"><div class="status-banner status-info"><strong>Preview only.</strong> This phase extracts data for inspection and never saves it to MySQL.</div><div class="selection-grid"><label for="batchSelect">Batch<select id="batchSelect" required><option value="">Loading batches...</option></select></label><label for="semesterSelect">Semester<select id="semesterSelect" required disabled><option value="">Select a batch first</option></select></label><label for="sessionSelect">Exam session<select id="sessionSelect" required disabled><option value="">Select a semester first</option></select></label></div><form id="extractionForm" enctype="multipart/form-data" novalidate><label class="pdf-file-control" for="resultPdf">Result PDF <span>PDF only · text-based · up to 15 MB</span><input type="file" id="resultPdf" name="resultPdf" accept="application/pdf,.pdf" required /></label><div class="extraction-actions"><button id="extractButton" type="submit" class="btn btn-primary">Extract and preview</button><button id="clearButton" type="button" class="btn btn-secondary">Clear preview</button></div></form></section>
-      <div id="extractionMessage" class="extraction-message" role="status" aria-live="polite" hidden></div><section id="extractionPreview" class="extraction-preview" hidden><header class="preview-header"><div><h2>Extraction preview</h2><p id="previewContext"></p><p id="previewFileName"></p></div><strong id="subjectCount" class="subject-count">0 subjects</strong></header><div id="extractionErrors" class="extraction-errors" role="alert" hidden></div><p class="extraction-method">Selectable PDF text extraction</p><h3>Review extracted student records</h3><p class="preview-edit-hint">Edit extracted fields below, then validate them against the selected student, semester, session and subject configuration.</p><div id="studentPreviews" class="student-previews"></div><div class="extraction-actions"><button id="validateButton" type="button" class="btn btn-primary">Validate extracted results</button></div><section id="validationResults" class="validation-summary" hidden><div id="validationSummary"></div><section class="validation-group"><h3>Valid records</h3><div id="validStudentPreviews" class="student-previews"></div></section><section class="validation-group"><h3>Invalid records</h3><div id="invalidStudentPreviews" class="student-previews"></div></section></section><div class="extraction-actions"><button id="phase16ConfirmButton" type="button" class="btn btn-primary" disabled>Confirm &amp; Save</button></div><dialog id="confirmDialog" class="confirmation-dialog"><h2>Confirm Result Submission</h2><p>You are about to save the validated examination results.</p><ul><li>Total students: <strong id="confirmTotalStudents">0</strong></li><li>Valid students: <strong id="confirmValidStudents">0</strong></li><li>Invalid students excluded: <strong id="confirmInvalidStudents">0</strong></li><li>Valid subject records: <strong id="confirmSubjectRecords">0</strong></li></ul><p>Invalid records will not be included.</p><div class="extraction-actions"><button id="cancelConfirmationButton" type="button" class="btn btn-secondary">Cancel</button><button id="confirmSaveButton" type="button" class="btn btn-primary">Confirm &amp; Save</button></div></dialog><section id="saveSuccessSummary" class="save-summary" hidden><h2>Results Saved Successfully</h2><p>Total students processed: <strong id="savedStudentCount">0</strong></p><p>Total subject results saved: <strong id="savedRecordCount">0</strong></p><p>Successful status: <strong>Completed</strong></p><p>Failed records: <strong id="savedFailedCount">0</strong></p><div class="extraction-actions"><a class="btn btn-secondary" href="/dashboard">Return to Result Dashboard</a><a class="btn btn-secondary" href="/results">View Saved Results</a><button id="uploadAnotherButton" type="button" class="btn btn-primary">Upload Another PDF</button></div></section><p class="no-save-note">No extracted results are saved until you explicitly confirm them.</p></section>
-    </main></div>
-  <footer class="site-footer"><p>&copy; 2026 Smart Student Result Analysis and Academic Performance Prediction System.</p></footer><script src="/js/api.js"></script><script src="/js/main.js"></script><script src="/js/result-extraction.js"></script>
-</body></html>
+  <header class="top-navbar">
+    <div class="brand"><img src="/images/logo.svg" alt="Smart Result Analysis" class="logo" /><span class="brand-title">Smart Student Result Analysis</span></div>
+    <div class="navbar-right"><a class="btn btn-secondary" href="/results">Back to results</a><button id="logoutBtn" class="btn-logout" type="button">Logout</button></div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation"><nav><ul class="nav-list">
+      <li class="nav-caption">Workspace</li><li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+      <li class="nav-caption nav-caption-spaced">Results &amp; insights</li><li><a href="/results" class="nav-link">Result records</a></li>
+      <li><a href="/results/extract" class="nav-link active" aria-current="page">Upload results</a></li>
+      <li><a href="/reports" class="nav-link">Reports</a></li>
+    </ul></nav></aside>
+    <main class="main-content result-review-page">
+      <div class="page-header"><span class="page-title-icon" aria-hidden="true">PDF</span><div><h1>Marks Card Review</h1><p>Compare extracted marks with the uploaded card before validation.</p></div></div>
+      <section class="card extraction-form-card">
+        <div class="status-banner status-info"><strong>Review before saving.</strong> The same PDF may be uploaded again. Results already saved for a student, semester, and subject are flagged and cannot be saved twice.</div>
+        <div class="selection-grid">
+          <label for="batchSelect"><span class="upload-step-number">1</span> Select batch<select id="batchSelect" required><option value="">Loading batches...</option></select></label>
+          <label for="sessionSelect"><span class="upload-step-number">2</span> Select exam session<select id="sessionSelect" required disabled><option value="">Select a batch first</option></select></label>
+          <label hidden aria-hidden="true">Semester<select id="semesterSelect" disabled><option value=""></option></select></label>
+        </div>
+        <form id="extractionForm" class="file-pick-row" enctype="multipart/form-data" novalidate>
+          <label class="pdf-file-control" for="resultPdf"><span class="upload-step-number">3</span> Upload result / marks card <span>Selectable text PDF · up to 15 MB</span><input type="file" id="resultPdf" name="resultPdf" accept="application/pdf,.pdf" required /></label>
+          <div class="extraction-actions"><button id="extractButton" type="submit" class="btn btn-primary">Upload and extract</button><button id="clearButton" type="button" class="btn btn-secondary">Clear review</button></div>
+        </form>
+      </section>
+      <div id="extractionMessage" class="extraction-message" role="status" aria-live="polite" hidden></div>
+
+      <section id="extractionPreview" class="extraction-preview" hidden>
+        <header class="preview-header"><div><h2>Review marks card</h2><p id="previewContext"></p><p id="previewFileName"></p></div><strong id="subjectCount" class="subject-count">0 subjects</strong></header>
+        <div id="extractionErrors" class="extraction-errors" role="alert" hidden></div>
+        <div class="review-workspace">
+          <section class="pdf-card" aria-label="Original marks card preview">
+            <header class="pdf-card-heading"><div><strong>Original Marks Card</strong><span>Compare every result with the PDF</span></div><a id="openPdfLink" class="btn btn-secondary pdf-open-link" target="_blank" rel="noopener" hidden>Open PDF</a></header>
+            <iframe id="pdfPreviewFrame" title="Original marks card PDF" src="about:blank"></iframe>
+          </section>
+          <div class="review-panel">
+            <section class="review-instructions"><span class="review-step">ADMIN REVIEW</span><h3>Subject results</h3><p>Subject names and maximum marks come from the selected semester in the database, matched by subject code. Edit internal and external marks; totals update automatically.</p></section>
+            <div id="studentPreviews" class="student-previews"></div>
+            <div class="review-main-actions"><button id="validateButton" type="button" class="btn btn-primary">Validate marks <span aria-hidden="true">→</span></button></div>
+            <section id="validationResults" class="validation-summary" hidden><div id="validationSummary"></div><section class="validation-group"><h3>Needs attention</h3><div id="invalidStudentPreviews" class="student-previews"></div></section></section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer"><p>&copy; 2026 Smart Student Result Analysis and Academic Performance Prediction System.</p></footer>
+  <script src="/js/api.js"></script><script src="/js/main.js"></script><script src="/js/result-extraction.js"></script>
+</body>
+</html>

@@ -76,6 +76,19 @@ test('VTU text extraction recognizes student metadata, Roman semester and multip
   assert.equal(records[1].resultStatus, 'Fail');
 });
 
+test('VTU extraction assembles marks split across PDF lines and ignores announced dates', () => {
+  const records = extraction.parseVtuText([
+    'USN: 1MV25MC061', 'Student Name: SAMPLE STUDENT', 'Semester: 2',
+    'MMC201 MACHINE LEARNING AND DATA ANALYTICS', 'USING PYTHON', '37', '14', '51',
+    'MMC202 OBJECT ORIENTED PROGRAMMING USING JAVA 30 10 40 F 2026-09-22'
+  ].join('\n'));
+  assert.equal(records.length, 2);
+  assert.deepEqual(records.map(({ subjectCode, internalMarks, externalMarks, total }) => [subjectCode, internalMarks, externalMarks, total]), [
+    ['MMC201', '37', '14', '51'], ['MMC202', '30', '10', '40']
+  ]);
+  assert.equal(records[1].resultStatus, 'Fail');
+});
+
 test('Excel extraction finds headers by label and handles multiple students and subjects', () => {
   const buffer = excelBuffer([
     ['Subject Name', 'Semester', 'USN', 'Result', 'External Marks', 'Student Name', 'Subject Code', 'Total', 'Internal Marks'],

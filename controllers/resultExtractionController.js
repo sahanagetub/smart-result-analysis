@@ -19,6 +19,11 @@ exports.examSessions = async (req, res) => {
   catch (error) { return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Unable to load exam sessions for this semester.' }); }
 };
 
+exports.batchExamSessions = async (req, res) => {
+  try { return res.json({ success: true, data: await extractionService.listExamSessionsByBatch(req.params.batchId) }); }
+  catch (error) { return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Unable to load exam sessions for this batch.' }); }
+};
+
 exports.preview = async (req, res) => {
   try {
     const file = req.files?.resultPdf?.[0];
@@ -61,6 +66,6 @@ exports.confirm = async (req, res) => {
 exports.handleUploadError = (error, res) => {
   if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, message: 'PDF exceeds the 15 MB upload limit.' });
   if (error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ success: false, message: 'Upload exactly one PDF in the resultPdf field.' });
-  if (error.code === 'LIMIT_FIELD_COUNT') return res.status(400).json({ success: false, message: 'Provide batch, semester and exam session selections.' });
+  if (error.code === 'LIMIT_FIELD_COUNT') return res.status(400).json({ success: false, message: 'Provide the batch, exam session and semester context for the upload.' });
   return res.status(400).json({ success: false, message: 'The PDF upload could not be read.' });
 };

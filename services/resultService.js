@@ -105,6 +105,10 @@ async function createResultsBatchService(records, dependencies = {}) {
   if (!pool) throw createServiceError('Database pool unavailable.', 503);
   const normalized = records.map((record) => {
     const input = validateResultInput(record);
+    const semesterId = record.semester_id === undefined ? null : Number(record.semester_id);
+    if (semesterId !== null && (!Number.isSafeInteger(semesterId) || semesterId < 1)) {
+      throw createServiceError('Semester must be a valid positive number.', 400);
+    }
     const maxInternal = Number(record.max_internal_marks);
     const maxExternal = Number(record.max_external_marks);
     if (!(maxInternal > 0) || !(maxExternal > 0) || Math.abs(maxInternal + maxExternal - input.max_marks) > 0.01) {
@@ -113,9 +117,9 @@ async function createResultsBatchService(records, dependencies = {}) {
     const outcome = resultCalculationService.determineSubjectResult(Number(record.internal_marks), Number(record.external_marks), input.marks_obtained);
     const grade = resultCalculationService.calculateGrade((input.marks_obtained / input.max_marks) * 100);
     if (grade === null || outcome.status !== record.status) throw createServiceError('The extracted result does not match Phase 9 calculation rules.', 400);
-    return { ...input, grade, status: outcome.status, exam_session_name: String(record.exam_session_name || '') };
+    return { ...input, semester_id: semesterId, grade, status: outcome.status, exam_session_name: String(record.exam_session_name || '') };
   });
-  const keys = normalized.map((record) => `${record.usn.trim().toUpperCase()}|${record.subject_code.trim().toUpperCase()}|${record.exam_session_id}`);
+  const keys = normalized.map((record) => `${record.usn.trim().toUpperCase()}|${record.subject_code.trim().toUpperCase()}|${record.semester_id ? `semester:${record.semester_id}` : `session:${record.exam_session_id}`}`);
   if (new Set(keys).size !== keys.length) throw createServiceError('The upload contains duplicate student-subject-session rows.', 409);
   const lockKeys = [...new Set(keys)].map((key) => `sras:result:${crypto.createHash('sha256').update(key).digest('hex').slice(0, 48)}`).sort();
   const connection = await pool.getConnection();
@@ -133,8 +137,11 @@ async function createResultsBatchService(records, dependencies = {}) {
       await dependencies.beforeInsert(connection, normalized);
     }
     for (const record of normalized) {
-      if (await model.resultExists(record.usn, record.subject_code, record.exam_session_id, connection)) {
-        throw createServiceError(`An existing result for ${record.usn}, ${record.subject_code}, and this exam session was found. Nothing was saved; review it and choose another session or cancel.`, 409);
+      const exists = record.semester_id && typeof model.resultExistsInSemester === 'function'
+        ? await model.resultExistsInSemester(record.usn, record.subject_code, record.semester_id, connection)
+        : await model.resultExists(record.usn, record.subject_code, record.exam_session_id, connection);
+      if (exists) {
+        throw createServiceError(`A result for ${record.usn}, ${record.subject_code}, and this semester already exists. Nothing was saved.`, 409);
       }
     }
     const ids = [];

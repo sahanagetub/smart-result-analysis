@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const subjectName = document.getElementById('subjectName');
   const subjectSemester = document.getElementById('subjectSemester');
   const subjectCredits = document.getElementById('subjectCredits');
+  const subjectMaxInternal = document.getElementById('subjectMaxInternal');
+  const subjectMaxExternal = document.getElementById('subjectMaxExternal');
   const subjectStatus = document.getElementById('subjectStatus');
   const saveSubjectBtn = document.getElementById('saveSubjectBtn');
 
@@ -21,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const errSubjectName = document.getElementById('errSubjectName');
   const errSubjectSemester = document.getElementById('errSubjectSemester');
   const errSubjectCredits = document.getElementById('errSubjectCredits');
+  const errSubjectMaxInternal = document.getElementById('errSubjectMaxInternal');
+  const errSubjectMaxExternal = document.getElementById('errSubjectMaxExternal');
   const errSubjectStatus = document.getElementById('errSubjectStatus');
 
   let subjects = [];
@@ -39,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (errSubjectName) errSubjectName.textContent = '';
     if (errSubjectSemester) errSubjectSemester.textContent = '';
     if (errSubjectCredits) errSubjectCredits.textContent = '';
+    if (errSubjectMaxInternal) errSubjectMaxInternal.textContent = '';
+    if (errSubjectMaxExternal) errSubjectMaxExternal.textContent = '';
     if (errSubjectStatus) errSubjectStatus.textContent = '';
     if (pageMessage) pageMessage.style.display = 'none';
   }
@@ -141,6 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
     subjectId.value = '';
     subjectStatus.value = 'Active';
     subjectCredits.value = '4';
+    subjectMaxInternal.value = '40';
+    subjectMaxExternal.value = '60';
     const formHeader = addSubjectForm.querySelector('.card-header h3');
     if (formHeader) formHeader.textContent = 'Add Subject';
     if (saveSubjectBtn) saveSubjectBtn.textContent = 'Save Subject';
@@ -158,6 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
     subjectName.value = sub.subject_name || '';
     subjectSemester.value = sub.semester_id || '';
     subjectCredits.value = sub.credits || '4';
+    subjectMaxInternal.value = sub.max_internal_marks ?? 40;
+    subjectMaxExternal.value = sub.max_external_marks ?? 60;
     subjectStatus.value = sub.status || 'Active';
     const formHeader = addSubjectForm.querySelector('.card-header h3');
     if (formHeader) formHeader.textContent = 'Edit Subject';
@@ -217,6 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const nameVal = subjectName.value.trim();
       const semVal = parseInt(subjectSemester.value, 10);
       const creditsVal = parseInt(subjectCredits.value, 10) || 4;
+      const maxInternalVal = Number(subjectMaxInternal.value);
+      const maxExternalVal = Number(subjectMaxExternal.value);
       const statusVal = subjectStatus.value;
 
       let valid = true;
@@ -236,6 +248,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (errSubjectCredits) errSubjectCredits.textContent = 'Credits must be between 1 and 10.';
         valid = false;
       }
+      if (subjectMaxInternal.value.trim() === '' || !Number.isInteger(maxInternalVal) || maxInternalVal < 0 || maxInternalVal > 100) {
+        if (errSubjectMaxInternal) errSubjectMaxInternal.textContent = 'Enter a whole number from 0 to 100.';
+        valid = false;
+      }
+      if (subjectMaxExternal.value.trim() === '' || !Number.isInteger(maxExternalVal) || maxExternalVal < 0 || maxExternalVal > 100) {
+        if (errSubjectMaxExternal) errSubjectMaxExternal.textContent = 'Enter a whole number from 0 to 100.';
+        valid = false;
+      }
       if (!valid) return;
 
       const payload = {
@@ -243,6 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
         subject_name: nameVal,
         semester_id: semVal,
         credits: creditsVal,
+        max_internal_marks: maxInternalVal,
+        max_external_marks: maxExternalVal,
+        total_maximum_marks: maxInternalVal + maxExternalVal,
         status: statusVal
       };
 

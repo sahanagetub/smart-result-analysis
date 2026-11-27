@@ -49,7 +49,25 @@ async function getReferenceData(records, selection = {}, executor = null) {
     const [rows] = await pool.execute(`SELECT id, batch_id AS batchId, semester_number AS semesterNumber, semester_name AS semesterName FROM semesters WHERE id = ? LIMIT 1${executor ? ' FOR UPDATE' : ''}`, [selection.semesterId]);
     if (rows[0]) selectedSemester = { id: Number(rows[0].id), batchId: Number(rows[0].batchId), semesterNumber: Number(rows[0].semesterNumber), semesterName: rows[0].semesterName };
   }
-  return { students, semesters, subjects, selectedSemester };
+  const existingResults = new Map();
+  const knownSemesterIds = [...new Set([...semesters.values()].map((semester) => Number(semester.id)).concat(selectedSemester ? [selectedSemester.id] : []))];
+  for (const usnGroup of chunks(usns)) {
+    for (const semesterGroup of chunks(knownSemesterIds)) {
+      if (!usnGroup.length || !semesterGroup.length) continue;
+      const usnPlaceholders = usnGroup.map(() => '?').join(',');
+      const semesterPlaceholders = semesterGroup.map(() => '?').join(',');
+      const [rows] = await pool.execute(`SELECT UPPER(r.usn) AS usn, UPPER(r.subject_code) AS subjectCode,
+          es.semester_id AS semesterId, r.exam_session_id AS examSessionId, es.session_name AS sessionName
+        FROM results r JOIN exam_sessions es ON es.id = r.exam_session_id
+        WHERE UPPER(r.usn) IN (${usnPlaceholders}) AND es.semester_id IN (${semesterPlaceholders})${executor ? ' FOR UPDATE' : ''}`,
+      [...usnGroup, ...semesterGroup]);
+      rows.forEach((row) => existingResults.set(
+        `${String(row.usn).toUpperCase()}:${Number(row.semesterId)}:${String(row.subjectCode).toUpperCase()}`,
+        { ...row, semesterId: Number(row.semesterId), examSessionId: Number(row.examSessionId) }
+      ));
+    }
+  }
+  return { students, semesters, subjects, selectedSemester, existingResults };
 }
 
 async function getExamSessions(semesterIds = []) {

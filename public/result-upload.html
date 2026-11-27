@@ -25,7 +25,7 @@
     <main class="main-content">
       <div class="page-header"><span class="page-title-icon" aria-hidden="true">⇧</span><div><h1>VTU Original Result Upload</h1><p>Review extracted rows, select exam sessions, then confirm one atomic save.</p></div></div>
       <section class="card upload-intro">
-        <div class="status-banner status-warning"><strong>Review before saving.</strong> The system never changes extracted marks. A confirmed upload saves all valid rows together; invalid rows block the entire upload.</div>
+        <div class="status-banner status-warning"><strong>Review before saving.</strong> You may upload the same file again. Review and correct IA and EX; total and result recalculate. Previously saved student, semester, and subject rows are blocked.</div>
         <p>Choose a text based VTU result PDF or an Excel workbook. The preview checks student, semester, subject and marks against current MySQL reference data.</p>
         <p class="upload-limitation">Scanned image PDFs are not supported in this phase. OCR is not enabled. Files are processed in memory and discarded after preview.</p>
         <form id="resultPreviewForm" enctype="multipart/form-data" novalidate>
@@ -49,21 +49,21 @@
           <article class="card"><span>Extracted</span><strong id="totalRecordCount">0</strong></article>
           <article class="card"><span>Valid</span><strong id="validRecordCount">0</strong></article>
           <article class="card"><span>Invalid</span><strong id="invalidRecordCount">0</strong></article>
-          <article class="card duplicate-stat"><span>Duplicate originals</span><strong id="duplicateRecordCount">0</strong></article>
+          <article class="card duplicate-stat"><span>Already saved</span><strong id="duplicateRecordCount">0</strong></article>
         </div>
         <div id="documentErrors" class="document-errors" hidden></div>
         <section aria-labelledby="validRowsTitle"><h3 id="validRowsTitle">Valid records</h3><div class="upload-table-wrap"><table class="data-table upload-table">
-          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal</th><th>External</th><th>Total</th><th>Result</th><th>Exam session</th><th>Validation</th></tr></thead>
+          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal (IA) · edit</th><th>External (EX) · edit</th><th>Total · auto</th><th>Result · auto</th><th>Exam session</th><th>Validation</th></tr></thead>
           <tbody id="previewRowsValid"><tr><td colspan="10">No valid records.</td></tr></tbody>
         </table></div></section>
         <section aria-labelledby="invalidRowsTitle"><h3 id="invalidRowsTitle">Invalid records</h3><div class="upload-table-wrap"><table class="data-table upload-table">
-          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal</th><th>External</th><th>Total</th><th>Result</th><th>Exam session</th><th>Validation errors</th></tr></thead>
+          <thead><tr><th>USN</th><th>Student name</th><th>Semester</th><th>Subject code</th><th>Subject name</th><th>Internal (IA) · edit</th><th>External (EX) · edit</th><th>Total · auto</th><th>Result · auto</th><th>Exam session</th><th>Validation errors</th></tr></thead>
           <tbody id="previewRowsInvalid"><tr><td colspan="10">No invalid records.</td></tr></tbody>
         </table></div></section>
         <section id="sessionMapping" class="session-mapping" hidden aria-labelledby="sessionMappingTitle">
           <h3 id="sessionMappingTitle">Exam session mapping</h3>
           <p>Select the existing exam session for each semester in this document.</p>
-          <div id="sessionChoices" class="session-choices"></div>
+          <div id="sessionChoices" class="session-choices"></div><button id="validateMarksBtn" class="btn btn-secondary" type="button" disabled>Validate edited marks</button>
           <div class="upload-form-actions">
             <button id="confirmUploadBtn" class="btn btn-primary" type="button" disabled>Confirm and save all results</button>
             <button id="cancelUploadBtn" class="btn btn-secondary" type="button">Cancel upload</button>

@@ -7,6 +7,7 @@
   let isUploading = false;
   let isValidating = false;
   let validationSequence = 0;
+  let needsValidation = false;
   const mimeByExtension = {
     '.pdf': ['application/pdf', 'application/octet-stream'],
     '.xls': ['application/vnd.ms-excel', 'application/octet-stream'],
@@ -50,9 +51,46 @@
     if (className) cell.className = className;
     row.appendChild(cell); return cell;
   }
+  function addMarkInput(row, record, field, label, maximum) {
+    const cell = document.createElement('td');
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = '0'; input.step = '0.01';
+    if (Number(maximum) > 0) input.max = String(maximum);
+    input.value = record[field] ?? '';
+    input.dataset.markField = field;
+    input.dataset.initialValue = input.value;
+    input.setAttribute('aria-label', `${label} for ${record.subjectCode || 'subject row'}`);
+    input.className = 'review-mark-input';
+    cell.appendChild(input); row.appendChild(cell);
+    return cell;
+  }
+  function updateDerivedMarks(row) {
+    const internalText = row.querySelector('[data-mark-field="internalMarks"]')?.value ?? '';
+    const externalText = row.querySelector('[data-mark-field="externalMarks"]')?.value ?? '';
+    const internal = Number(internalText);
+    const external = Number(externalText);
+    const totalCell = row.querySelector('[data-derived="total"]');
+    const statusCell = row.querySelector('[data-derived="status"]');
+    if (!internalText.trim() || !externalText.trim() || !Number.isFinite(internal) || !Number.isFinite(external) || internal < 0 || external < 0) {
+      totalCell.textContent = '—'; statusCell.textContent = '—'; return;
+    }
+    const total = Math.round((internal + external) * 100) / 100;
+    totalCell.textContent = String(total);
+    statusCell.textContent = internal >= 25 && external >= 20 && total >= 50 ? 'Pass' : 'Fail';
+  }
+  function readMarkCorrections() {
+    return [...document.querySelectorAll('#previewRowsValid tr[data-source-index], #previewRowsInvalid tr[data-source-index]')]
+      .map((row) => {
+        const internal = row.querySelector('[data-mark-field="internalMarks"]');
+        const external = row.querySelector('[data-mark-field="externalMarks"]');
+        if (internal.value === internal.dataset.initialValue && external.value === external.dataset.initialValue) return null;
+        return { sourceIndex: Number(row.dataset.sourceIndex), internalMarks: internal.value, externalMarks: external.value };
+      }).filter(Boolean);
+  }
   function renderPreview(data) {
     $('previewFileName').textContent = `${data.fileName} · ${data.format.toUpperCase()}`;
     activePreview = data;
+    needsValidation = false;
     renderValidation(data);
     $('previewPanel').hidden = false;
     $('sessionMapping').hidden = true;
@@ -77,9 +115,14 @@
     const invalidBody = $('previewRowsInvalid'); invalidBody.replaceChildren();
     const appendRecord = (record, body) => {
       const row = document.createElement('tr'); row.className = `${record.valid ? 'preview-valid' : 'preview-invalid'}${record.duplicateOriginal ? ' duplicate-result' : ''}`;
+      row.dataset.sourceIndex = String(record.sourceIndex);
       addCell(row, record.usn); addCell(row, record.studentName); addCell(row, record.semesterName ? `${record.semesterNumber} · ${record.semesterName}` : record.semesterNumber);
-      addCell(row, record.subjectCode); addCell(row, record.subjectName); addCell(row, record.internalMarks);
-      addCell(row, record.externalMarks); addCell(row, record.total); addCell(row, record.resultStatus);
+      addCell(row, record.subjectCode); addCell(row, record.subjectName);
+      addMarkInput(row, record, 'internalMarks', 'IA marks', record.maxInternalMarks);
+      addMarkInput(row, record, 'externalMarks', 'EX marks', record.maxExternalMarks);
+      const totalCell = addCell(row, record.total, 'derived-mark'); totalCell.dataset.derived = 'total';
+      const statusCell = addCell(row, record.resultStatus, 'derived-mark'); statusCell.dataset.derived = 'status';
+      updateDerivedMarks(row);
       addCell(row, record.examSessionName || '—');
       const validationCell = addCell(row, '', 'validation-cell');
       if (record.valid) { validationCell.textContent = record.validationWarnings?.length ? 'Valid with warnings' : 'Valid'; validationCell.classList.add(record.validationWarnings?.length ? 'validation-warning' : 'record-valid'); }
@@ -134,7 +177,8 @@
 
   function updateConfirmAvailability() {
     const selects = [...$('sessionChoices').querySelectorAll('select')];
-    $('confirmUploadBtn').disabled = isSaving || isValidating || !activePreview || !activePreview.validCount || activePreview.invalidCount > 0 ||
+    $('validateMarksBtn').disabled = isSaving || isValidating || !activePreview || !selects.length || selects.some((select) => !select.value);
+    $('confirmUploadBtn').disabled = isSaving || isValidating || needsValidation || !activePreview || !activePreview.validCount || activePreview.invalidCount > 0 ||
       !selects.length || selects.some((select) => !select.value);
   }
 
@@ -149,11 +193,12 @@
     try {
       const response = await window.apiFetch('/api/result-uploads/validate-session', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ uploadToken: activePreview.uploadToken, sessionMappings })
+        body: JSON.stringify({ uploadToken: activePreview.uploadToken, sessionMappings, corrections: readMarkCorrections() })
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Could not validate the selected exam session.');
       if (requestId !== validationSequence || !activePreview) return;
+      needsValidation = false;
       activePreview = { ...activePreview, ...payload.data };
       renderValidation(activePreview);
       $('previewSaveStatus').textContent = activePreview.duplicateCount ? `${activePreview.duplicateCount} duplicate result row(s) found` : 'Validation complete';
@@ -161,6 +206,24 @@
       if (requestId === validationSequence) { isValidating = false; updateConfirmAvailability(); }
     }
   }
+
+  function handleMarkEdit(event) {
+    const input = event.target.closest('[data-mark-field]');
+    if (!input) return;
+    const row = input.closest('tr[data-source-index]');
+    if (!row) return;
+    updateDerivedMarks(row);
+    needsValidation = true;
+    validationSequence += 1;
+    isValidating = false;
+    $('previewSaveStatus').textContent = 'Marks changed · validate again';
+    updateConfirmAvailability();
+  }
+  $('previewRowsValid').addEventListener('input', handleMarkEdit);
+  $('previewRowsInvalid').addEventListener('input', handleMarkEdit);
+  $('validateMarksBtn').addEventListener('click', () => {
+    validateSelectedSessions().catch((error) => displayMessage(error.message, 'error'));
+  });
 
   async function refreshSelectionValidation() {
     if (!activePreview || !$('batchSelect').value || !$('semesterSelect').value) return;
@@ -174,6 +237,7 @@
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Could not refresh validation.');
       if (requestId !== validationSequence || !activePreview) return;
+      needsValidation = false;
       activePreview = payload.data;
       renderValidation(activePreview);
       $('sessionChoices').replaceChildren(); $('sessionMapping').hidden = true;
@@ -186,6 +250,7 @@
   async function cancelCurrentPreview() {
     const token = activePreview?.uploadToken;
     activePreview = null;
+    needsValidation = false;
     $('sessionMapping').hidden = true;
     $('previewPanel').hidden = true;
     $('previewRowsValid').replaceChildren(); $('previewRowsInvalid').replaceChildren();

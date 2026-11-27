@@ -29,6 +29,30 @@ test('extracts a preview only, including student and subject marks', async () =>
   assert.equal(Object.hasOwn(preview, 'reviewToken'), false);
 });
 
+test('preview includes only subject codes configured for the selected semester', async () => {
+  const scopedModel = {
+    ...model,
+    getValidationReferenceData: async () => ({
+      subjects: [{ subjectCode: 'MMC101', subjectName: 'PROGRAMMING IN C', maxInternalMarks: 50, maxExternalMarks: 50, totalMaximumMarks: 100 }]
+    })
+  };
+  const file = {
+    originalname: 'result.pdf', mimetype: 'application/pdf',
+    buffer: makePdf([
+      'USN: 1MV25MC052', 'Student Name: SAMPLE STUDENT', 'Semester: 1',
+      'MMC101 PROGRAMMING IN C 50 41 91 P',
+      'D25J26ECBCS UNCONFIGURED SUBJECT 35 40 75 P'
+    ])
+  };
+  const preview = await extraction.extractPdf(file, selection, { model: scopedModel });
+  assert.deepEqual(preview.subjects.map((subject) => subject.subjectCode), ['MMC101']);
+  assert.deepEqual(preview.students[0].subjects.map((subject) => subject.subjectName), ['PROGRAMMING IN C']);
+  await assert.rejects(
+    extraction.extractPdf({ ...file, buffer: makePdf(['USN: 1MV25MC052', 'Student Name: SAMPLE STUDENT', 'Semester: 1', 'D25J26ECBCS UNCONFIGURED SUBJECT 35 40 75 P']) }, selection, { model: scopedModel }),
+    { status: 422 }
+  );
+});
+
 test('rejects invalid uploads and scanned PDFs without OCR', async () => {
   await assert.rejects(extraction.extractPdf({ originalname: 'result.txt', mimetype: 'text/plain', buffer: Buffer.from('text') }, selection, { model }), { status: 400 });
   await assert.rejects(extraction.extractPdf({ originalname: 'scan.pdf', mimetype: 'application/pdf', buffer: makePdf([]) }, selection, { model }), { status: 422 });

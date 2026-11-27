@@ -56,6 +56,9 @@ async function validateExtraction(selection = {}, students = [], dependencies = 
   if (!references) throw validationError('Database reference checks are unavailable. Enable MySQL before validating.', 503);
   const studentMap = new Map((references.students || []).map((student) => [normalizeUsn(student.usn), student]));
   const subjectMap = new Map((references.subjects || []).map((subject) => [normalizeCode(subject.subjectCode || subject.subject_code), subject]));
+  const existingResultMap = new Map((references.existingResults || []).map((result) => [
+    `${normalizeUsn(result.usn)}|${normalizeCode(result.subjectCode || result.subject_code)}`, result
+  ]));
 
   const records = students.map((source) => {
     const student = source?.student || {};
@@ -84,10 +87,15 @@ async function validateExtraction(selection = {}, students = [], dependencies = 
       const subjectCode = normalizeCode(sourceSubject.subjectCode);
       const subjectErrors = [];
       const configuredSubject = subjectMap.get(subjectCode);
+      const existingResult = usn && subjectCode ? existingResultMap.get(`${usn}|${subjectCode}`) : null;
       const subjectName = String(sourceSubject.subjectName || '').trim();
       if (!subjectCode) subjectErrors.push('Subject code is missing.');
       if (subjectCode && subjectCodeCounts.get(subjectCode) > 1) subjectErrors.push(`Duplicate subject code: ${subjectCode}.`);
       if (subjectCode && !configuredSubject) subjectErrors.push(`Unknown subject code: ${subjectCode}.`);
+      if (existingResult) {
+        const session = existingResult.sessionName || `session ${existingResult.examSessionId}`;
+        subjectErrors.push(`A result for ${subjectCode} is already saved for ${usn} in this semester (${session}). It cannot be saved again.`);
+      }
       if (!subjectName) subjectErrors.push(`Subject name is missing for ${subjectCode || 'this subject'}.`);
       else if (configuredSubject && normalizeCode(subjectName) !== normalizeCode(configuredSubject.subjectName || configuredSubject.subject_name)) {
         subjectErrors.push(`Subject name does not match configured subject ${subjectCode}.`);

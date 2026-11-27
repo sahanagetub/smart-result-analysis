@@ -61,11 +61,15 @@ router.get('/results', requireAuth, (req, res) => {
 });
 
 router.get('/results/upload', requireAuth, requireStaff, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'result-upload.html'));
+  res.redirect('/results/extract');
 });
 
 router.get('/results/extract', requireAuth, requireStaff, (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'result-extraction.html'));
+});
+
+router.get('/results/extract/confirm', requireAuth, requireStaff, (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'result-extraction-confirm.html'));
 });
 
 // Test data generator (admin only)

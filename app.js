@@ -55,8 +55,13 @@ app.engine('ejs', (filePath, options, callback) => {
   });
 });
 
-// Security headers
-app.use(helmet());
+// Security headers. PDF review embeds a browser-local object URL; allowing blob:
+// here does not expose uploaded documents as server-hosted files.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: { frameSrc: ["'self'", 'blob:'] }
+  }
+}));
 
 // HTTP request logging
 if (process.env.NODE_ENV === 'production') {

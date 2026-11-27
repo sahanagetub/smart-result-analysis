@@ -108,18 +108,20 @@ test('preview validation checks missing and conflicting student or subject infor
 
 test('Phase 16 preview interface supports editing, separate validation groups and no save request', () => {
   const html = fs.readFileSync(require.resolve('../public/result-extraction.html'), 'utf8');
+  const confirmHtml = fs.readFileSync(require.resolve('../public/result-extraction-confirm.html'), 'utf8');
   const js = fs.readFileSync(require.resolve('../public/js/result-extraction.js'), 'utf8');
-  assert.match(html, /id="validStudentPreviews"/);
   assert.match(html, /id="invalidStudentPreviews"/);
-  assert.match(html, /id="confirmDialog"/);
-  assert.match(html, /id="saveSuccessSummary"/);
-  assert.match(html, /phase16ConfirmButton[^>]*disabled/);
+  assert.doesNotMatch(html, /Confirm and save|confirmSaveButton|confirmDialog/);
+  assert.match(confirmHtml, /id="confirmAndSaveButton"/);
+  assert.match(confirmHtml, /id="confirmStudentPreviews"/);
   assert.match(js, /api\/result-extractions\/preview/);
   assert.match(js, /api\/result-extractions\/validate/);
   assert.match(js, /data-field="/);
   assert.match(js, /Preview edited/);
-  assert.match(js, /api\/result-extractions\/confirm/);
-  assert.match(js, /confirmSaveButton/);
+  assert.match(js, /sessionStorage\.setItem/);
+  assert.match(js, /results\/extract\/confirm/);
+  const confirmJs = fs.readFileSync(require.resolve('../public/js/result-extraction-confirm.js'), 'utf8');
+  assert.match(confirmJs, /api\/result-extractions\/confirm/);
   assert.doesNotMatch(js, /api\/(?:results|result-uploads)\/confirm/);
-  assert.doesNotMatch(js, /saveResults|createResultsBatchService/);
+  assert.doesNotMatch(confirmJs, /saveResults|createResultsBatchService/);
 });

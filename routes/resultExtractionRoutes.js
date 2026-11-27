@@ -26,6 +26,7 @@ function reserveExtraction(_req, res, next) {
 
 router.get('/batches', requireAuth, requireStaff, controller.batches);
 router.get('/batches/:batchId/semesters', requireAuth, requireStaff, controller.semesters);
+router.get('/batches/:batchId/exam-sessions', requireAuth, requireStaff, controller.batchExamSessions);
 router.get('/semesters/:semesterId/exam-sessions', requireAuth, requireStaff, controller.examSessions);
 router.post('/preview', requireAuth, requireStaff, csrfMiddleware, reserveExtraction, (req, res, next) => {
   receivePdf(req, res, (error) => error ? controller.handleUploadError(error, res) : next());

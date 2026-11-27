@@ -63,16 +63,22 @@ function updateMetadata(line, current, rules = DEFAULT_RESULT_PDF_RULES) {
 
 function parseSubjectLine(line, metadata, source = {}, rules = DEFAULT_RESULT_PDF_RULES) {
   const clean = text(line);
-  if (!clean || /\b(?:SUBJECT\s+CODE|INTERNAL\s+MARKS|EXTERNAL\s+MARKS|TOTAL\s+MARKS)\b/i.test(clean)) return null;
-  const statusMatch = clean.match(new RegExp(rules.statusPattern || DEFAULT_RESULT_PDF_RULES.statusPattern, 'i'));
-  const body = statusMatch ? clean.slice(0, statusMatch.index).trim() : clean;
+  if (!clean || /\b(?:USN|UNIVERSITY\s+SEAT\s+NUMBER|STUDENT\s+NAME|CANDIDATE\s+NAME|SEMESTER|SUBJECT\s+CODE|INTERNAL\s+MARKS|EXTERNAL\s+MARKS|TOTAL\s+MARKS)\b/i.test(clean)) return null;
+  // VTU cards often put the announced date after P/F, so remove dates before
+  // locating the three mark columns and recognize status anywhere in the row.
+  const withoutDates = clean.replace(/\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b/g, ' ');
+  const statusMatches = [...withoutDates.matchAll(/\b(PASS|FAIL|P|F)\b/gi)];
+  const statusMatch = statusMatches.at(-1) || null;
+  const body = statusMatch
+    ? `${withoutDates.slice(0, statusMatch.index)} ${withoutDates.slice(statusMatch.index + statusMatch[0].length)}`.trim()
+    : withoutDates;
   const markMatches = [...body.matchAll(new RegExp(rules.markPattern || DEFAULT_RESULT_PDF_RULES.markPattern, 'gi'))];
   const markFields = markMatches.slice(-3);
   const beforeMarks = markFields.length ? body.slice(0, markFields[0].index).trim() : body;
   const codeMatch = beforeMarks.match(new RegExp(rules.subjectCodePattern || DEFAULT_RESULT_PDF_RULES.subjectCodePattern, 'i'));
   if (!codeMatch) return null;
   const subjectName = text(beforeMarks.slice(codeMatch.index + codeMatch[0].length).replace(/^[\s:|.-]+/, ''));
-  if (!subjectName || /\b(?:SUBJECT\s+NAME|INTERNAL|EXTERNAL|TOTAL)\b/i.test(subjectName)) return null;
+  if (/\b(?:SUBJECT\s+NAME|INTERNAL|EXTERNAL|TOTAL)\b/i.test(subjectName)) return null;
   return {
     usn: metadata.usn || '', studentName: metadata.studentName || '',
     semesterNumber: metadata.semesterNumber ?? null,
@@ -111,19 +117,19 @@ function parseVtuText(documentText, rules = DEFAULT_RESULT_PDF_RULES) {
     const previousUsn = metadata.usn;
     updateMetadata(line, metadata, rules);
     if (metadata.usn && metadata.usn !== previousUsn) { pending = ''; pendingLine = null; }
-    let candidate = pending ? `${pending} ${line}` : line;
-    const record = parseSubjectLine(candidate, metadata, { sourceRow: pendingLine ?? index + 1 }, rules);
-    const hasMarkEvidence = Boolean(candidate.match(new RegExp(rules.markPattern, 'gi')) || new RegExp(rules.statusPattern, 'i').test(candidate));
-    if (record && hasMarkEvidence) {
-      records.push(record);
-      pending = ''; pendingLine = null;
-      continue;
-    }
     if (pending && lineLooksLikeSubjectStart(line, rules)) {
       const incomplete = parseSubjectLine(pending, metadata, { sourceRow: pendingLine ?? index + 1 }, rules);
       if (incomplete) records.push(incomplete);
       pending = line;
       pendingLine = index + 1;
+      continue;
+    }
+    let candidate = pending ? `${pending} ${line}` : line;
+    const record = parseSubjectLine(candidate, metadata, { sourceRow: pendingLine ?? index + 1 }, rules);
+    const hasCompleteMarks = record && record.internalMarks !== '' && record.externalMarks !== '' && record.total !== '';
+    if (hasCompleteMarks) {
+      records.push(record);
+      pending = ''; pendingLine = null;
       continue;
     }
     if (record && !pending) {
@@ -334,21 +340,44 @@ async function extractUploadedDocument(file) {
     try { return { format, records: parseWorkbook(file.buffer) }; }
     catch (error) { throw Object.assign(new Error('The Excel file is corrupted or is not a readable XLS/XLSX workbook.'), { status: 400 }); }
   }
-  const parser = new PDFParse({ data: file.buffer });
+  const pdfText = await extractSelectablePdfText(file.buffer);
+  return { format, records: parseVtuText(pdfText) };
+}
+
+/** Extract embedded PDF text only. This deliberately has no OCR/image fallback. */
+async function extractSelectablePdfText(buffer, options = {}) {
+  const maxPages = Number.isInteger(options.maxPages) && options.maxPages > 0 ? options.maxPages : 100;
+  const pageLimitMessage = options.pageLimitMessage || `PDF exceeds the ${maxPages}-page extraction limit.`;
+  const unreadableMessage = options.unreadableMessage || 'The PDF could not be read. Check that it is a valid, unencrypted PDF with selectable text.';
+  const noTextMessage = options.noTextMessage || 'The PDF contains no selectable text. Scanned PDFs are not supported; OCR is not enabled.';
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw Object.assign(new Error('Choose a non-empty PDF file.'), { status: 400 });
+
+  let parser;
   try {
-    const extracted = await parser.getText({ first: 100, lineEnforce: true, cellSeparator: ' ', pageJoiner: '\n' });
-    if (extracted.total > 100) throw Object.assign(new Error('PDF exceeds the 100-page preview limit.'), { status: 400 });
-    if (!String(extracted.text || '').trim()) throw Object.assign(new Error('The PDF contains no selectable text. Scanned PDFs are not supported in this phase; OCR is not enabled.'), { status: 400 });
-    return { format, records: parseVtuText(extracted.text) };
+    parser = new PDFParse({ data: buffer });
+    const extracted = await parser.getText({
+      first: maxPages,
+      lineEnforce: true,
+      cellSeparator: ' ',
+      pageJoiner: '\n'
+    });
+    const pageCount = Number(extracted?.total);
+    if (Number.isFinite(pageCount) && pageCount > maxPages) {
+      throw Object.assign(new Error(pageLimitMessage), { status: 413 });
+    }
+    const pdfText = String(extracted?.text || '').replace(/\u0000/g, '').trim();
+    if (!pdfText) throw Object.assign(new Error(noTextMessage), { status: 422 });
+    return pdfText;
   } catch (error) {
     if (error.status) throw error;
-    throw Object.assign(new Error('The PDF could not be read. Check that it is a valid, unencrypted PDF with selectable text.'), { status: 400 });
+    throw Object.assign(new Error(unreadableMessage), { status: 400 });
   } finally {
-    await parser.destroy().catch(() => {});
+    if (parser) await parser.destroy().catch(() => {});
   }
 }
 
 module.exports = {
   extractUploadedDocument, parseWorkbook, parseVtuText, detectHeader,
-  validateFileEnvelope, getExtension, parseSemester, hasZipEndOfCentralDirectory, hasLegacyExcelWorkbook, getZipUncompressedSize
+  extractSelectablePdfText, validateFileEnvelope, getExtension, parseSemester,
+  hasZipEndOfCentralDirectory, hasLegacyExcelWorkbook, getZipUncompressedSize
 };

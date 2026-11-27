@@ -30,6 +30,7 @@ function flattenValidRecords(validation) {
       max_external_marks: maxExternal,
       status: outcome.status,
       exam_session_id: validation.selection.examSessionId,
+      semester_id: validation.selection.semesterId,
       exam_session_name: validation.context?.examSessionName || ''
     };
   }));

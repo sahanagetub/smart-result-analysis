@@ -2,7 +2,7 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const state = { preview: null, validation: null, editedStudents: null, extracting: false, validating: false, saving: false, saved: false };
+  const state = { preview: null, validation: null, editedStudents: null, pdfUrl: null, extracting: false, validating: false, saving: false, saved: false };
   const maxPdfBytes = 15 * 1024 * 1024;
 
   function message(text, kind = '') {
@@ -12,15 +12,49 @@
     box.hidden = !text;
   }
 
+  function showSourcePdf(file) {
+    if (state.pdfUrl) URL.revokeObjectURL(state.pdfUrl);
+    state.pdfUrl = URL.createObjectURL(file);
+    $('pdfPreviewFrame').src = state.pdfUrl;
+    $('openPdfLink').href = state.pdfUrl;
+    $('openPdfLink').hidden = false;
+  }
+
+  function clearSourcePdf() {
+    if (state.pdfUrl) URL.revokeObjectURL(state.pdfUrl);
+    state.pdfUrl = null;
+    $('pdfPreviewFrame').src = 'about:blank';
+    $('openPdfLink').removeAttribute('href');
+    $('openPdfLink').hidden = true;
+  }
+
+  function selectedSemesterId() {
+    const option = $('sessionSelect').selectedOptions[0];
+    return String(option?.dataset.semesterId || option?.dataset.semester_id || '');
+  }
+
+  function clearStoredReview() {
+    try { sessionStorage.removeItem('sra.result-extraction-confirmation'); } catch (_) { /* storage may be disabled */ }
+  }
+
   function updateConfirmationAvailability() {
+    const button = $('phase16ConfirmButton');
+    if (!button) return;
     const validSubjects = state.validation?.validRecords?.reduce((sum, record) => sum + record.subjects.filter((subject) => subject.valid).length, 0) || 0;
-    $('phase16ConfirmButton').disabled = state.saving || state.saved || !state.preview || !state.validation || validSubjects < 1;
+    button.disabled = state.saving || state.saved || !state.preview || !state.validation || validSubjects < 1;
   }
 
   function invalidateValidation(text) {
     if (!state.preview || state.saved || state.saving) return;
+    state.preview = null;
     state.validation = null;
+    state.editedStudents = null;
+    clearStoredReview();
+    $('extractionPreview').hidden = true;
     $('validationResults').hidden = true;
+    $('studentPreviews').replaceChildren();
+    $('invalidStudentPreviews').replaceChildren();
+    clearSourcePdf();
     updateConfirmationAvailability();
     message(text || 'The selection changed. Validate the preview again before saving.', '');
   }
@@ -32,7 +66,12 @@
     const response = await window.apiFetch(url);
     const payload = await response.json();
     if (!response.ok || !payload.success) throw new Error(payload.message || `Unable to load ${label}.`);
-    (payload.data || []).forEach((item) => select.add(new Option(label(item), item.id)));
+    (payload.data || []).forEach((item) => {
+      const option = new Option(label(item), item.id);
+      const semesterId = item.semesterId ?? item.semester_id;
+      if (semesterId) option.dataset.semesterId = String(semesterId);
+      select.add(option);
+    });
     select.disabled = false;
   }
 
@@ -41,25 +80,22 @@
   }
 
   $('batchSelect').addEventListener('change', async () => {
-    invalidateValidation('Batch changed. Select the semester and session, then validate again.');
-    $('semesterSelect').replaceChildren(new Option('Select a batch first', ''));
-    $('sessionSelect').replaceChildren(new Option('Select a semester first', ''));
+    invalidateValidation('Batch changed. Select an exam session, then upload the marks card again.');
+    $('semesterSelect').replaceChildren(new Option('', ''));
+    $('sessionSelect').replaceChildren(new Option('Select a batch first', ''));
     $('semesterSelect').disabled = true; $('sessionSelect').disabled = true;
     try {
-      if ($('batchSelect').value) await loadOptions(`/api/result-extractions/batches/${encodeURIComponent($('batchSelect').value)}/semesters`, $('semesterSelect'), 'Select a semester…', (row) => `${row.semester_name || row.semesterName} (${row.semester_number || row.semesterNumber})`);
+      if ($('batchSelect').value) await loadOptions(`/api/result-extractions/batches/${encodeURIComponent($('batchSelect').value)}/exam-sessions`, $('sessionSelect'), 'Select an exam session…', (row) => `Semester ${row.semesterNumber} · ${row.sessionName}`);
     } catch (error) { message(error.message, 'error'); }
   });
 
-  $('semesterSelect').addEventListener('change', async () => {
-    invalidateValidation('Semester changed. Select an exam session and validate again.');
-    $('sessionSelect').replaceChildren(new Option('Select a semester first', ''));
-    $('sessionSelect').disabled = true;
-    try {
-      if ($('semesterSelect').value) await loadOptions(`/api/result-extractions/semesters/${encodeURIComponent($('semesterSelect').value)}/exam-sessions`, $('sessionSelect'), 'Select an exam session…', (row) => row.session_name || row.sessionName);
-    } catch (error) { message(error.message, 'error'); }
+  $('sessionSelect').addEventListener('change', () => {
+    const semesterId = selectedSemesterId();
+    $('semesterSelect').replaceChildren(new Option('', ''), new Option('', semesterId));
+    $('semesterSelect').value = semesterId;
+    $('semesterSelect').disabled = !semesterId;
+    invalidateValidation('Exam session changed. Upload the marks card again to create a new preview.');
   });
-
-  $('sessionSelect').addEventListener('change', () => invalidateValidation('Exam session changed. Validate the preview again before saving.'));
 
   function makeField(labelText, value, field, type = 'text') {
     const label = document.createElement('label'); label.className = 'review-field';
@@ -68,8 +104,66 @@
     input.type = type; input.value = value ?? ''; input.dataset.field = field;
     if (type === 'number') { input.min = '0'; input.step = '0.01'; }
     if (field === 'extractedSemester') { input.min = '1'; input.max = '12'; input.step = '1'; }
+    input.readOnly = !['internalMarks', 'externalMarks', 'usn', 'name'].includes(field);
     label.appendChild(input);
     return label;
+  }
+
+  function makeStaticField(value, field, className = '') {
+    const element = document.createElement('span');
+    element.dataset.field = field;
+    element.dataset.value = value ?? '';
+    element.textContent = value ?? '';
+    if (className) element.className = className;
+    return element;
+  }
+
+  function fieldValue(element) {
+    if (!element) return '';
+    return 'value' in element ? element.value : (element.dataset.value ?? element.textContent ?? '');
+  }
+
+  function setFieldValue(element, value) {
+    if (!element) return;
+    if ('value' in element) element.value = value;
+    else { element.dataset.value = value; element.textContent = value; }
+  }
+
+  function makeMarkField(labelText, value, field, maximum) {
+    const label = makeField(labelText, value, field, 'number');
+    const maxText = document.createElement('small');
+    maxText.className = 'mark-maximum';
+    maxText.textContent = `max ${maximum ?? '—'}`;
+    label.appendChild(maxText);
+    return label;
+  }
+
+  function updateSubjectTotals(row) {
+    const get = (field) => row.querySelector(`[data-field="${field}"]`);
+    const internalText = fieldValue(get('internalMarks'));
+    const externalText = fieldValue(get('externalMarks'));
+    const internal = Number(internalText); const external = Number(externalText);
+    const total = get('totalMarks'); const status = get('result');
+    if (!internalText.trim() || !externalText.trim() || !Number.isFinite(internal) || !Number.isFinite(external) || internal < 0 || external < 0) {
+      setFieldValue(total, ''); setFieldValue(status, '');
+      if (status) status.className = 'result-status-badge';
+      return;
+    }
+    const combined = Math.round((internal + external) * 100) / 100;
+    setFieldValue(total, String(combined));
+    if (status) {
+      const passed = internal >= 25 && external >= 20 && combined >= 50;
+      setFieldValue(status, passed ? 'P' : 'F');
+      status.textContent = passed ? 'PASS' : 'FAIL';
+      status.className = `result-status-badge ${passed ? 'is-pass' : 'is-fail'}`;
+    }
+  }
+
+  function makeStatusBadge(value) {
+    const normalized = String(value || '').toUpperCase();
+    const badge = makeStaticField(normalized, 'result', `result-status-badge ${normalized === 'P' ? 'is-pass' : normalized === 'F' ? 'is-fail' : ''}`);
+    badge.textContent = normalized === 'P' ? 'PASS' : normalized === 'F' ? 'FAIL' : '—';
+    return badge;
   }
 
   function makeStatusSelect(value) {
@@ -91,60 +185,60 @@
       const card = document.createElement('article');
       card.className = `student-preview-card ${validation ? (validation.valid ? 'record-valid-card' : 'record-invalid-card') : 'record-pending-card'}`;
       card.dataset.studentIndex = String(studentIndex);
-      const heading = document.createElement('div'); heading.className = 'student-card-heading';
-      const title = document.createElement('h3'); title.textContent = student.student?.name || student.student?.usn || `Student ${studentIndex + 1}`;
-      const status = document.createElement('span'); status.className = 'student-validation-status';
-      status.textContent = validation ? (validation.valid ? 'Valid' : 'Invalid') : 'Needs validation';
-      heading.append(title, status); card.appendChild(heading);
+      card.dataset.extractedSemester = student.extractedSemester ?? '';
 
       const meta = document.createElement('div'); meta.className = 'student-meta';
       meta.append(
-        makeField('Student name', student.student?.name, 'name'),
-        makeField('USN', student.student?.usn, 'usn'),
-        makeField('Batch', state.preview?.selection?.batch?.name || '', 'batchLabel'),
-        makeField('Semester number', student.extractedSemester, 'extractedSemester', 'number')
+        makeField('USN *', student.student?.usn, 'usn'),
+        makeField('Student Name *', student.student?.name, 'name'),
+        makeField('Attempt No *', student.attemptNo || 1, 'attemptNo', 'number')
       );
-      const batchField = meta.querySelector('[data-field="batchLabel"]'); batchField.readOnly = true;
       card.appendChild(meta);
-
+      const attemptHint = document.createElement('p'); attemptHint.className = 'attempt-hint';
+      attemptHint.textContent = 'For this student and semester: Regular 1, Backlog 2, 3 and onward across exam sessions.';
+      card.appendChild(attemptHint);
       if (validation?.errors?.length) card.appendChild(errorList(validation.errors, 'student-errors'));
       if (validation?.warnings?.length) card.appendChild(errorList(validation.warnings, 'student-warnings'));
 
+      const resultsTitle = document.createElement('h4'); resultsTitle.className = 'review-section-title subject-results-title';
+      const resultsLabel = document.createElement('span'); resultsLabel.textContent = 'Subject Results';
+      const resultsCount = document.createElement('span'); resultsCount.textContent = `${student.subjects.length} subjects`;
+      resultsTitle.append(resultsLabel, resultsCount); card.appendChild(resultsTitle);
       const tableWrap = document.createElement('div'); tableWrap.className = 'subject-table-wrap';
       const table = document.createElement('table'); table.className = 'data-table subject-table';
-      const head = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      ['Subject code', 'Subject name', 'Internal (IA)', 'External (EX)', 'Total', 'Result', 'Validation'].forEach((text) => {
-        const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th);
+      const head = document.createElement('thead'); const headerRow = document.createElement('tr');
+      ['Code', 'Subject', 'Internal', 'External', 'Total', 'Status'].forEach((label) => {
+        const th = document.createElement('th'); th.textContent = label; headerRow.appendChild(th);
       });
       head.appendChild(headerRow); table.appendChild(head);
       const body = document.createElement('tbody');
       student.subjects.forEach((subject, subjectIndex) => {
         const subjectValidation = validation?.subjects?.[subjectIndex];
-        const row = document.createElement('tr');
-        row.dataset.subjectIndex = String(subjectIndex);
+        const row = document.createElement('tr'); row.dataset.subjectIndex = String(subjectIndex);
         if (subjectValidation && !subjectValidation.valid) row.classList.add('needs-review');
         [
-          makeField('Code', subject.subjectCode, 'subjectCode'),
-          makeField('Name', subject.subjectName, 'subjectName'),
-          makeField('Internal (IA)', subject.internalMarks, 'internalMarks', 'number'),
-          makeField('External (EX)', subject.externalMarks, 'externalMarks', 'number'),
-          makeField('Total', subject.totalMarks, 'totalMarks', 'number'),
-          makeStatusSelect(subject.result)
+          makeStaticField(subject.subjectCode, 'subjectCode', 'subject-code-value'),
+          makeStaticField(subject.subjectName, 'subjectName', 'subject-name-value'),
+          makeMarkField('Internal', subject.internalMarks, 'internalMarks', subject.maxInternalMarks),
+          makeMarkField('External', subject.externalMarks, 'externalMarks', subject.maxExternalMarks),
+          makeStaticField(subject.totalMarks, 'totalMarks', 'result-total'),
+          makeStatusBadge(subject.result)
         ].forEach((field) => { const cell = document.createElement('td'); cell.appendChild(field); row.appendChild(cell); });
-        const errorCell = document.createElement('td'); errorCell.className = 'row-errors';
-        const rowErrors = subjectValidation?.errors || subject.errors || [];
-        if (rowErrors.length) errorCell.appendChild(errorList(rowErrors));
-        else errorCell.textContent = subjectValidation ? 'Valid' : 'Not validated';
-        row.appendChild(errorCell); body.appendChild(row);
+        row.querySelector('[data-field="internalMarks"]').max = Number(subject.maxInternalMarks) > 0 ? String(subject.maxInternalMarks) : '';
+        row.querySelector('[data-field="externalMarks"]').max = Number(subject.maxExternalMarks) > 0 ? String(subject.maxExternalMarks) : '';
+        updateSubjectTotals(row); body.appendChild(row);
       });
       table.appendChild(body); tableWrap.appendChild(table); card.appendChild(tableWrap);
+      const subjectIssues = student.subjects.flatMap((subject, subjectIndex) => {
+        const issues = validation?.subjects?.[subjectIndex]?.errors || subject.errors || [];
+        return issues.map((issue) => `${subject.subjectCode}: ${issue}`);
+      });
+      if (subjectIssues.length) card.appendChild(errorList(subjectIssues, 'subject-row-issues'));
       if (!validation && student.errors?.length) card.appendChild(errorList(student.errors, 'student-errors'));
       if (readOnly) card.querySelectorAll('input, select').forEach((field) => { field.disabled = true; });
       target.appendChild(card);
     });
   }
-
   function errorList(errors, className = '') {
     const list = document.createElement('ul'); if (className) list.className = className;
     errors.forEach((text) => { const item = document.createElement('li'); item.textContent = text; list.appendChild(item); });
@@ -154,19 +248,19 @@
   function readEditedStudents() {
     return state.preview.students.map((student, studentIndex) => {
       const card = $('studentPreviews').querySelector(`[data-student-index="${studentIndex}"]`);
-      const value = (field) => card.querySelector(`[data-field="${field}"]`)?.value ?? '';
+      const value = (field) => fieldValue(card.querySelector(`[data-field="${field}"]`));
       return {
         ...student,
         student: { ...student.student, name: value('name').trim(), usn: value('usn').trim() },
-        extractedSemester: value('extractedSemester'),
+        extractedSemester: card.dataset.extractedSemester,
         subjects: student.subjects.map((subject, subjectIndex) => {
           const row = card.querySelector(`[data-subject-index="${subjectIndex}"]`);
-          const fieldValue = (field) => row.querySelector(`[data-field="${field}"]`)?.value ?? '';
+          const rowValue = (field) => fieldValue(row.querySelector(`[data-field="${field}"]`));
           return {
             ...subject,
-            subjectCode: fieldValue('subjectCode').trim(), subjectName: fieldValue('subjectName').trim(),
-            internalMarks: fieldValue('internalMarks'), externalMarks: fieldValue('externalMarks'),
-            totalMarks: fieldValue('totalMarks'), result: fieldValue('result')
+            subjectCode: rowValue('subjectCode').trim(), subjectName: rowValue('subjectName').trim(),
+            internalMarks: rowValue('internalMarks'), externalMarks: rowValue('externalMarks'),
+            totalMarks: rowValue('totalMarks'), result: rowValue('result')
           };
         })
       };
@@ -188,9 +282,7 @@
           subjects: source.subjects.map((subject, subjectIndex) => ({ ...subject, ...record.subjects[subjectIndex] })) }
       };
     });
-    const valid = pairs.filter(({ record }) => record.valid);
     const invalid = pairs.filter(({ record }) => !record.valid);
-    renderStudents($('validStudentPreviews'), valid.map((pair) => pair.student), valid.map((pair) => pair.record), true);
     renderStudents($('invalidStudentPreviews'), invalid.map((pair) => pair.student), invalid.map((pair) => pair.record), true);
     $('validationResults').hidden = false;
   }
@@ -204,13 +296,13 @@
       const payloadBody = {
         selection: {
           batchId: $('batchSelect').value,
-          semesterId: $('semesterSelect').value,
+          semesterId: selectedSemesterId(),
           examSessionId: $('sessionSelect').value
         },
         students: readEditedStudents()
       };
       const selectedText = (id) => $(id).selectedOptions[0]?.textContent || '';
-      $('previewContext').textContent = `${selectedText('batchSelect')} · ${selectedText('semesterSelect')} · ${selectedText('sessionSelect')}`;
+      $('previewContext').textContent = `${selectedText('batchSelect')} · ${selectedText('sessionSelect')}`;
       const response = await window.apiFetch('/api/result-extractions/validate', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payloadBody)
@@ -218,12 +310,30 @@
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Unable to validate these extracted results.');
       const selectionChanged = payloadBody.selection.batchId !== $('batchSelect').value ||
-        payloadBody.selection.semesterId !== $('semesterSelect').value || payloadBody.selection.examSessionId !== $('sessionSelect').value;
+        payloadBody.selection.semesterId !== selectedSemesterId() || payloadBody.selection.examSessionId !== $('sessionSelect').value;
       if (selectionChanged || JSON.stringify(readEditedStudents()) !== JSON.stringify(payloadBody.students)) {
         throw new Error('The preview changed while validation was running. Validate the latest values again.');
       }
       state.validation = payload.data;
       state.editedStudents = payloadBody.students;
+      if (payload.data.validCount > 0) {
+        try {
+          const reviewPageData = {
+            selection: payload.data.selection,
+            context: payload.data.context,
+            totalCount: payload.data.totalCount,
+            validCount: payload.data.validCount,
+            invalidCount: payload.data.invalidCount,
+            validRecords: payload.data.validRecords,
+            invalidRecords: payload.data.invalidRecords
+          };
+          sessionStorage.setItem('sra.result-extraction-confirmation', JSON.stringify(reviewPageData));
+          window.location.assign('/results/extract/confirm');
+          return;
+        } catch (_) {
+          message('Could not open the confirmation page in this browser tab. Try a smaller upload.', 'error');
+        }
+      }
       renderValidation(payload.data, payloadBody.students);
       updateConfirmationAvailability();
       message(payload.message || 'Validation complete. No results were saved.', payload.data.invalidCount ? 'error' : 'success');
@@ -234,15 +344,19 @@
     }
   }
 
-  $('studentPreviews').addEventListener('input', () => {
+  $('studentPreviews').addEventListener('input', (event) => {
     if (!state.preview) return;
+    clearStoredReview();
+    if (['internalMarks', 'externalMarks'].includes(event.target.dataset.field)) updateSubjectTotals(event.target.closest('tr'));
     state.validation = null; $('validationResults').hidden = true;
     $('extractionErrors').hidden = true;
     updateConfirmationAvailability();
     message('Preview edited. Validate the updated values before review.', '');
   });
-  $('studentPreviews').addEventListener('change', () => {
+  $('studentPreviews').addEventListener('change', (event) => {
     if (!state.preview) return;
+    clearStoredReview();
+    if (['internalMarks', 'externalMarks'].includes(event.target.dataset.field)) updateSubjectTotals(event.target.closest('tr'));
     state.validation = null; $('validationResults').hidden = true;
     $('extractionErrors').hidden = true;
     updateConfirmationAvailability();
@@ -253,21 +367,23 @@
     event.preventDefault();
     if (state.extracting) return;
     const file = $('resultPdf').files[0];
-    if (!$('batchSelect').value || !$('semesterSelect').value || !$('sessionSelect').value) return message('Select a batch, semester and exam session first.', 'error');
+    clearStoredReview();
+    const semesterId = selectedSemesterId();
+    if (!$('batchSelect').value || !semesterId || !$('sessionSelect').value) return message('Select a batch and exam session first.', 'error');
     if (!file || !file.name.toLowerCase().endsWith('.pdf') || file.size <= 0 || file.size > maxPdfBytes) return message('Choose a valid, non-empty PDF no larger than 15 MB.', 'error');
     state.extracting = true; $('extractButton').disabled = true; $('clearButton').disabled = true;
     $('extractionPreview').hidden = true; message('Uploading PDF and extracting student and subject rows…');
+    showSourcePdf(file);
     const formData = new FormData();
     formData.append('resultPdf', file, file.name);
     formData.append('batchId', $('batchSelect').value);
-    formData.append('semesterId', $('semesterSelect').value);
+    formData.append('semesterId', semesterId);
     formData.append('examSessionId', $('sessionSelect').value);
     try {
       const response = await window.apiFetch('/api/result-extractions/preview', { method: 'POST', body: formData, headers: { Accept: 'application/json' } });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.message || 'The PDF could not be extracted.');
       state.preview = payload.data; state.validation = null; state.editedStudents = null; state.saved = false;
-      $('saveSuccessSummary').hidden = true;
       $('previewContext').textContent = `${payload.data.selection.batch.name} · Semester ${payload.data.selection.semester.number} · ${payload.data.selection.examSession.name}`;
       $('previewFileName').textContent = payload.data.fileName;
       $('subjectCount').textContent = `${payload.data.totalSubjectsExtracted} subject row(s) · ${payload.data.students.length} student(s)`;
@@ -285,60 +401,13 @@
   });
 
   $('validateButton').addEventListener('click', runValidation);
-  $('phase16ConfirmButton').addEventListener('click', () => {
-    if ($('phase16ConfirmButton').disabled || !state.validation) return;
-    const validSubjects = state.validation.validRecords.reduce((sum, record) => sum + record.subjects.filter((subject) => subject.valid).length, 0);
-    $('confirmTotalStudents').textContent = state.preview.students.length;
-    $('confirmValidStudents').textContent = state.validation.validCount;
-    $('confirmInvalidStudents').textContent = state.validation.invalidCount;
-    $('confirmSubjectRecords').textContent = validSubjects;
-    $('confirmDialog').showModal();
-  });
-  $('cancelConfirmationButton').addEventListener('click', () => $('confirmDialog').close());
-  $('confirmSaveButton').addEventListener('click', async () => {
-    if (state.saving || state.saved || !state.validation?.validRecords?.length) return;
-    state.saving = true; $('confirmDialog').close(); updateConfirmationAvailability();
-    $('confirmSaveButton').disabled = true; $('extractButton').disabled = true; $('clearButton').disabled = true;
-    $('validateButton').disabled = true; message('Saving the validated results in one database transaction…');
-    $('batchSelect').disabled = true; $('semesterSelect').disabled = true; $('sessionSelect').disabled = true;
-    try {
-      const response = await window.apiFetch('/api/result-extractions/confirm', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ selection: state.validation.selection, students: state.validation.validRecords })
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) throw new Error(payload.message || 'The result batch was not saved.');
-      state.saved = true;
-      $('savedStudentCount').textContent = payload.data.processedStudentCount;
-      $('savedRecordCount').textContent = payload.data.savedCount;
-      $('savedFailedCount').textContent = payload.data.failedRecordCount;
-      $('saveSuccessSummary').hidden = false;
-      $('phase16ConfirmButton').disabled = true;
-      $('studentPreviews').querySelectorAll('input, select').forEach((field) => { field.disabled = true; });
-      message(payload.message || 'Results saved successfully.', 'success');
-    } catch (error) {
-      message(error.message || 'The result batch was not saved. You can review validation and retry.', 'error');
-    } finally {
-      state.saving = false; $('confirmSaveButton').disabled = false;
-      $('extractButton').disabled = false; $('clearButton').disabled = false; $('validateButton').disabled = state.saved;
-      $('batchSelect').disabled = false; $('semesterSelect').disabled = !$('batchSelect').value; $('sessionSelect').disabled = !$('semesterSelect').value;
-      updateConfirmationAvailability();
-    }
-  });
-
-  $('uploadAnotherButton').addEventListener('click', () => {
-    state.preview = null; state.validation = null; state.editedStudents = null; state.saved = false;
-    $('extractionForm').reset(); $('resultPdf').value = '';
-    $('extractionPreview').hidden = true; $('saveSuccessSummary').hidden = true;
-    $('studentPreviews').replaceChildren(); $('validStudentPreviews').replaceChildren(); $('invalidStudentPreviews').replaceChildren();
-    updateConfirmationAvailability(); message('Choose another PDF to preview.', 'success');
-  });
   $('clearButton').addEventListener('click', () => {
     state.preview = null; state.validation = null; state.editedStudents = null; state.saved = false;
+    clearSourcePdf();
     $('extractionForm').reset(); $('resultPdf').value = '';
     $('extractionPreview').hidden = true; $('validationResults').hidden = true;
-    $('saveSuccessSummary').hidden = true;
-    $('studentPreviews').replaceChildren(); message('Preview cleared. No results were saved.', 'success');
+    $('studentPreviews').replaceChildren(); $('invalidStudentPreviews').replaceChildren();
+    message('Preview cleared. No results were saved.', 'success');
     updateConfirmationAvailability();
   });
 

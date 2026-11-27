@@ -29,7 +29,7 @@ router.post('/preview', requireAuth, requireStaff, csrfMiddleware, reservePrevie
   receiveFile(req, res, (error) => error ? controller.handleUploadError(error, res) : next());
 }, controller.preview);
 router.get('/sessions', requireAuth, requireStaff, controller.sessions);
-router.post('/validate-session', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '256kb' }), controller.validateSession);
+router.post('/validate-session', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '2mb' }), controller.validateSession);
 router.post('/revalidate-selection', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '256kb' }), controller.revalidateSelection);
 router.post('/confirm', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '256kb' }), controller.confirm);
 router.post('/cancel', requireAuth, requireStaff, csrfMiddleware, express.json({ limit: '16kb' }), controller.cancel);

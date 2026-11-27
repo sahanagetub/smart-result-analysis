@@ -5,12 +5,8 @@ const extractionService = require('./resultExtractionService');
 const uploadModel = require('../models/resultUploadModel');
 const resultCalculationService = require('./resultCalculationService');
 
-const DUPLICATE_TTL_MS = 15 * 60 * 1000;
-const MAX_RECENT_UPLOADS = 500;
 const MAX_PENDING_PREVIEWS = 25;
 const MAX_PENDING_PREVIEW_ROWS = 20000;
-const recentUploads = new Map();
-const processingUploadHashes = new Set();
 const pendingPreviews = new Map();
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
 let pendingPreviewRows = 0;
@@ -59,8 +55,9 @@ async function validateRecords(records, dependencies = {}) {
     if (!duplicateRows.has(key)) duplicateRows.set(key, []);
     duplicateRows.get(key).push(record);
   }
-  const checked = records.map((source) => {
+  const checked = records.map((source, sourceIndex) => {
     const record = { ...source };
+    record.sourceIndex = sourceIndex;
     const errors = [];
     const warnings = [];
     const usn = String(record.usn || '').trim().toUpperCase();
@@ -129,6 +126,11 @@ async function validateRecords(records, dependencies = {}) {
     if (subject && subjectName && normalizedText(subjectName) !== normalizedText(subject.subjectName)) {
       addError(errors, 'Subject name does not match the subject code in this semester.');
     }
+    const existingResult = refs?.existingResults?.get(`${usn}:${semester?.id}:${subjectCode}`);
+    if (existingResult) {
+      const sessionName = existingResult.sessionName || `session ${existingResult.examSessionId}`;
+      addError(errors, `Result already exists for ${usn}, subject ${subjectCode}, semester ${semesterNumber} (${sessionName}). Existing marks cannot be saved again.`);
+    }
     let computedGrade = null;
     if (internal !== null && external !== null && total !== null && subject) {
       const outcome = resultCalculationService.determineSubjectResult(internal, external, total);
@@ -162,7 +164,7 @@ async function validateRecords(records, dependencies = {}) {
     record.validationErrors = errors;
     record.validationWarnings = warnings;
     record.valid = errors.length === 0;
-    record.duplicateOriginal = false;
+    record.duplicateOriginal = Boolean(existingResult);
     delete record.examSessionId;
     delete record.examSessionName;
     return record;
@@ -206,37 +208,25 @@ async function validateRecords(records, dependencies = {}) {
   };
 }
 
-function pruneDuplicateCache(now = Date.now()) {
-  for (const [hash, timestamp] of recentUploads) if (now - timestamp > DUPLICATE_TTL_MS) recentUploads.delete(hash);
-  while (recentUploads.size >= MAX_RECENT_UPLOADS) recentUploads.delete(recentUploads.keys().next().value);
+function prunePendingPreviews(now = Date.now()) {
   for (const [token, preview] of pendingPreviews) if (!preview.confirming && now - preview.createdAt > PREVIEW_TTL_MS) removePendingPreview(token);
 }
 
 async function previewUploadedFile(file, dependencies = {}) {
   const extractor = dependencies.extractionService || extractionService;
-  const hash = crypto.createHash('sha256').update(file.buffer).digest('hex');
-  const now = Date.now();
-  pruneDuplicateCache(now);
-  if (recentUploads.has(hash) || processingUploadHashes.has(hash)) throw uploadError('This file was already processed or is being processed. Select a different file or wait before retrying.', 409);
-  processingUploadHashes.add(hash);
-  try {
-    const extracted = await extractor.extractUploadedDocument(file);
-    if (extracted.records.length > 10000) throw uploadError('A single upload may contain at most 10,000 result rows.', 413);
-    const validation = await validateRecords(extracted.records, { ...dependencies, selection: dependencies.selection || {} });
-    pruneDuplicateCache(now);
-    if (pendingPreviews.size >= MAX_PENDING_PREVIEWS || pendingPreviewRows + validation.records.length > MAX_PENDING_PREVIEW_ROWS) {
-      throw uploadError('Pending previews are using the review capacity. Confirm or cancel an existing preview, then retry.', 429);
-    }
-    const uploadToken = crypto.randomUUID();
-    const fileName = String(file.originalname || 'result file').split(/[\\/]/).pop();
-    pendingPreviews.set(uploadToken, { createdAt: now, hash, ownerId: dependencies.ownerId || null, fileName, format: extracted.format, selection: dependencies.selection || null, records: validation.records, confirming: false });
-    pendingPreviewRows += validation.records.length;
-    recentUploads.set(hash, now);
-    pruneDuplicateCache(now);
-    return { fileName, format: extracted.format, ...validation, uploadToken };
-  } finally {
-    processingUploadHashes.delete(hash);
+  const extracted = await extractor.extractUploadedDocument(file);
+  if (extracted.records.length > 10000) throw uploadError('A single upload may contain at most 10,000 result rows.', 413);
+  const validation = await validateRecords(extracted.records, { ...dependencies, selection: dependencies.selection || {} });
+  prunePendingPreviews();
+  if (pendingPreviews.size >= MAX_PENDING_PREVIEWS || pendingPreviewRows + validation.records.length > MAX_PENDING_PREVIEW_ROWS) {
+    throw uploadError('Pending previews are using the review capacity. Confirm or cancel an existing preview, then retry.', 429);
   }
+  const uploadToken = crypto.randomUUID();
+  const createdAt = Date.now();
+  const fileName = String(file.originalname || 'result file').split(/[\\/]/).pop();
+  pendingPreviews.set(uploadToken, { createdAt, ownerId: dependencies.ownerId || null, fileName, format: extracted.format, selection: dependencies.selection || null, records: validation.records, confirming: false });
+  pendingPreviewRows += validation.records.length;
+  return { fileName, format: extracted.format, ...validation, uploadToken };
 }
 
 // Phase 14 hands corrected, validated PDF rows to the same confirmation
@@ -246,7 +236,7 @@ async function createReviewedPreview(records, options = {}, dependencies = {}) {
   if (records.length > 10000) throw uploadError('A review may contain at most 10,000 result rows.', 413);
   const validation = await validateRecords(records, dependencies);
   if (validation.invalidCount) throw uploadError('Correct all invalid rows before opening the confirmation step.', 422);
-  pruneDuplicateCache();
+  prunePendingPreviews();
   if (pendingPreviews.size >= MAX_PENDING_PREVIEWS || pendingPreviewRows + records.length > MAX_PENDING_PREVIEW_ROWS) {
     throw uploadError('Pending previews are using the review capacity. Confirm or cancel an existing preview, then retry.', 429);
   }
@@ -271,14 +261,41 @@ async function getSessions(uploadToken, dependencies = {}) {
   return { sessions: await model.getExamSessions(semesterIds), semesterIds };
 }
 
-async function validatePreviewSession({ uploadToken, sessionMappings }, dependencies = {}) {
+async function validatePreviewSession({ uploadToken, sessionMappings, corrections }, dependencies = {}) {
   const preview = pendingPreviews.get(String(uploadToken || ''));
   if (!preview) throw uploadError('This preview expired or the server restarted. Upload the document again.', 410);
   if (preview.ownerId && preview.ownerId !== dependencies.ownerId) throw uploadError('This preview belongs to another signed-in session.', 403);
   if (!sessionMappings || typeof sessionMappings !== 'object' || Array.isArray(sessionMappings)) throw uploadError('Choose an exam session for every semester before checking duplicates.');
 
   const model = dependencies.model || uploadModel;
-  const validation = await validateRecords(preview.records, { model, selection: preview.selection || {} });
+  let sourceRecords = preview.records;
+  if (corrections !== undefined) {
+    if (!Array.isArray(corrections) || corrections.length > preview.records.length) throw uploadError('The edited marks list is invalid.', 400);
+    const edits = new Map();
+    for (const correction of corrections) {
+      const index = Number(correction?.sourceIndex);
+      if (!Number.isSafeInteger(index) || index < 0 || index >= preview.records.length || edits.has(index)) {
+        throw uploadError('The edited marks contain an invalid or repeated row.', 400);
+      }
+      edits.set(index, correction);
+    }
+    sourceRecords = preview.records.map((record, index) => {
+      const correction = edits.get(Number(record.sourceIndex ?? index));
+      if (!correction) return record;
+      const internal = asNumber(correction.internalMarks);
+      const external = asNumber(correction.externalMarks);
+      const total = internal === null || external === null ? null : Math.round((internal + external) * 100) / 100;
+      const result = total === null ? '' : resultCalculationService.determineSubjectResult(internal, external, total).status;
+      return {
+        ...record,
+        internalMarks: internal === null ? '' : internal,
+        externalMarks: external === null ? '' : external,
+        total: total === null ? '' : total,
+        resultStatus: result
+      };
+    });
+  }
+  const validation = await validateRecords(sourceRecords, { model, selection: preview.selection || {} });
   const semesterIds = [...new Set(validation.records.filter((row) => row.semesterId).map((row) => Number(row.semesterId)))];
   const sessions = await model.getExamSessions(semesterIds);
   const checked = validation.records;
@@ -299,7 +316,6 @@ async function validatePreviewSession({ uploadToken, sessionMappings }, dependen
   }
 
   const duplicateGroups = new Map();
-  let duplicateCount = 0;
   for (const row of checked) {
     const session = sessionBySemester.get(Number(row.semesterId));
     if (!session) continue;
@@ -308,13 +324,12 @@ async function validatePreviewSession({ uploadToken, sessionMappings }, dependen
     const key = `${row.usn}:${row.subjectCode}:${session.id}`;
     if (!duplicateGroups.has(key)) duplicateGroups.set(key, []);
     duplicateGroups.get(key).push(row);
-    if (!row.studentId || !row.subjectId || typeof resultsModel.findExistingOriginalResult !== 'function') continue;
-    const existing = await resultsModel.findExistingOriginalResult(row.studentId, row.subjectId, session.id);
+    if (row.duplicateOriginal || !row.studentId || !row.subjectId || typeof resultsModel.findExistingOriginalResultInSemester !== 'function') continue;
+    const existing = await resultsModel.findExistingOriginalResultInSemester(row.studentId, row.subjectId, row.semesterId);
     if (existing) {
       row.duplicateOriginal = true;
-      row.validationErrors.push(`Original result already exists for ${row.usn}, subject ${row.subjectCode}, exam session "${session.sessionName}". Existing results are preserved.`);
+      row.validationErrors.push(`Result already exists for ${row.usn}, subject ${row.subjectCode}, semester ${row.semesterNumber} (${existing.sessionName || session.sessionName}). Existing marks are preserved.`);
       row.valid = false;
-      duplicateCount += 1;
     }
   }
   for (const rows of duplicateGroups.values()) {
@@ -323,9 +338,9 @@ async function validatePreviewSession({ uploadToken, sessionMappings }, dependen
       row.validationErrors.push(`Duplicate original result entry for ${row.usn}, subject ${row.subjectCode}, exam session "${row.examSessionName}" appears in this upload.`);
       row.duplicateOriginal = true;
       row.valid = false;
-      duplicateCount += 1;
     });
   }
+  const duplicateCount = checked.filter((row) => row.duplicateOriginal).length;
   const validRecords = checked.filter((row) => row.valid);
   const invalidRecords = checked.filter((row) => !row.valid);
   preview.records = checked;
@@ -388,6 +403,7 @@ async function confirmUpload({ uploadToken, sessionMappings }, dependencies = {}
       max_internal_marks: record.maxInternalMarks, max_external_marks: record.maxExternalMarks,
       grade: record.computedGrade,
       status: record.resultStatus,
+      semester_id: record.semesterId,
       exam_session_id: mappings[record.semesterId],
       exam_session_name: sessions.find((candidate) => candidate.id === mappings[record.semesterId])?.sessionName || ''
     }));
@@ -410,9 +426,9 @@ async function confirmUpload({ uploadToken, sessionMappings }, dependencies = {}
           continue;
         }
         const resultModel = dependencies.resultModel || require('../models/resultModel');
-        if (record.studentId && record.subjectId && typeof resultModel.findExistingOriginalResult === 'function') {
-          const existing = await resultModel.findExistingOriginalResult(record.studentId, record.subjectId, sessionId, connection);
-          if (existing) failures.push(`Original result already exists for ${record.usn}, subject ${record.subjectCode}, exam session "${session.sessionName}". Nothing was saved.`);
+        if (record.studentId && record.subjectId && typeof resultModel.findExistingOriginalResultInSemester === 'function') {
+          const existing = await resultModel.findExistingOriginalResultInSemester(record.studentId, record.subjectId, record.semesterId, connection);
+          if (existing) failures.push(`Result already exists for ${record.usn}, subject ${record.subjectCode}, semester ${record.semesterNumber} (${existing.sessionName || session.sessionName}). Nothing was saved.`);
         }
       }
       if (failures.length) throw uploadError(`Final confirmation validation failed: ${failures.join(' ')}`, 409);
@@ -433,8 +449,7 @@ function cancelPreview(uploadToken, ownerId) {
   if (preview.ownerId && preview.ownerId !== ownerId) throw uploadError('This preview belongs to another signed-in session.', 403);
   if (preview.confirming) throw uploadError('This preview is currently being confirmed and cannot be cancelled.', 409);
   removePendingPreview(token);
-  recentUploads.delete(preview.hash);
   return true;
 }
 
-module.exports = { previewUploadedFile, createReviewedPreview, validateRecords, getSessions, validatePreviewSession, revalidatePreviewSelection, confirmUpload, cancelPreview, asNumber, uploadError, recentUploads, pendingPreviews };
+module.exports = { previewUploadedFile, createReviewedPreview, validateRecords, getSessions, validatePreviewSession, revalidatePreviewSelection, confirmUpload, cancelPreview, asNumber, uploadError, pendingPreviews };
